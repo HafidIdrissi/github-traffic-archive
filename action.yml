@@ -37,7 +37,10 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.token }}
       run: |
-        python "${{ github.action_path }}/src/traffic_archive/cli.py" \
+        # Run as a module, not as a script. Executing cli.py directly gives it
+        # no package context, so its relative imports fail.
+        export PYTHONPATH="${{ github.action_path }}/src"
+        python -m traffic_archive.cli \
           --out "${{ inputs.out }}" \
           ${{ inputs.repos && format('--repos "{0}"', inputs.repos) || '' }} \
           ${{ inputs.owner && format('--owner "{0}"', inputs.owner) || '' }} \

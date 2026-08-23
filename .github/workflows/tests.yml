@@ -24,3 +24,14 @@ jobs:
           python-version: ${{ matrix.python }}
       - run: python -m pip install --upgrade pip pytest
       - run: python -m pytest -q
+
+      # Guards the exact invocation action.yml uses. Running cli.py as a
+      # script instead strips its package context and breaks the relative
+      # imports — a failure no unit test catches, because pytest imports the
+      # package properly.
+      - name: Entry point resolves the way the action invokes it
+        shell: bash
+        run: |
+          export PYTHONPATH="$PWD/src"
+          python -m traffic_archive.cli --help > /dev/null
+          echo "entry point ok"
