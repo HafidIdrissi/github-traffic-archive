@@ -32,10 +32,23 @@ jobs:
           echo "and store it as the TRAFFIC_TOKEN secret."
 
       - uses: ./
+        id: archive
         if: env.TRAFFIC_TOKEN != ''
         with:
           token: ${{ secrets.TRAFFIC_TOKEN }}
           repos: ${{ github.repository }}
+
+      # When archiving fails, the cause is almost always the token, and the
+      # three causes look identical from outside. Run the diagnostic here so
+      # the answer — including GitHub's own X-Accepted-GitHub-Permissions
+      # header — lands in this log instead of requiring a local run.
+      - name: Diagnose the token
+        if: failure() && steps.archive.outcome == 'failure'
+        env:
+          GITHUB_TOKEN: ${{ secrets.TRAFFIC_TOKEN }}
+        run: |
+          export PYTHONPATH="$PWD/src"
+          python -m traffic_archive.cli --check --repos "${{ github.repository }}" || true
 
       - name: Detect changes
         if: env.TRAFFIC_TOKEN != ''
