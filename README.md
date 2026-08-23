@@ -67,12 +67,39 @@ that way, first with `403` and then with `422`.
 
 So: create a token, store it as a secret, pass it in.
 
-| Token type | What to grant |
-|---|---|
-| Classic PAT | the `repo` scope |
-| Fine-grained PAT | **Administration: read** on the repositories you want, and nothing else |
+**Classic PAT with the `repo` scope is the configuration I have verified**
+returns `200` on this endpoint. If you want it working in one attempt, use that.
 
-The fine-grained option is the narrower of the two and is what I would use.
+A fine-grained PAT is narrower and should work, but GitHub's documentation
+describes the requirement only as "write access" without naming the
+fine-grained permission, so I will not put a specific name here that I have not
+confirmed. Instead, ask GitHub — see below.
+
+### Ask GitHub what it wants
+
+```bash
+traffic-archive --check --repos owner/repo --token YOUR_TOKEN
+```
+
+This writes nothing. It reports whether the token is valid, whether it can see
+the repository, and whether traffic is readable — and on a `403` from a
+fine-grained token it prints GitHub's own `X-Accepted-GitHub-Permissions`
+header, which names the exact permission required.
+
+```
+owner/repo
+  Token authenticates as: someone
+  Token type: classic or OAuth
+  Scopes: gist, read:org, repo, workflow
+  Repository visible: owner/repo
+  Traffic readable: yes (14 days returned)
+
+All good — archiving will work with this token.
+```
+
+The three failure modes look identical from the outside and need completely
+different fixes — an invalid token, a repository the token cannot see, and a
+missing permission. `--check` tells them apart.
 
 ## What you get
 
@@ -113,6 +140,9 @@ Works without Actions:
 
 ```bash
 export GITHUB_TOKEN=ghp_...
+
+# diagnose the token first — writes nothing
+traffic-archive --check --repos owner/repo
 
 # one or more repositories
 traffic-archive --repos owner/repo,owner/other

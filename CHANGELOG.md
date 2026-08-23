@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.0
+
+- `--check` diagnoses a token without writing anything, and surfaces GitHub's
+  own `X-Accepted-GitHub-Permissions` header so nobody has to guess which
+  permission the traffic endpoint wants
+- README no longer names a fine-grained permission it could not verify, and
+  leads with the classic `repo` scope, which is confirmed working
+
 ## 1.0.0
 
 First release.

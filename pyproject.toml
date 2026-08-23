@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "github-traffic-archive"
-version = "1.0.0"
+version = "1.1.0"
 description = "Archive GitHub traffic data before the 14-day window discards it."
 readme = "README.md"
 license = { text = "MIT" }

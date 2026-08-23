@@ -10,7 +10,7 @@ import os
 import sys
 from pathlib import Path
 
-from . import api
+from . import api, doctor
 from .merge import append_snapshot, merge_timeseries, to_csv_rows, totals
 
 
@@ -71,6 +71,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--include-forks", action="store_true", help="Include forks when using --owner.")
     p.add_argument("--token", default=os.environ.get("GITHUB_TOKEN", ""),
                    help="Token with push access. Defaults to $GITHUB_TOKEN.")
+    p.add_argument("--check", action="store_true",
+                   help="Diagnose token access and exit without writing anything.")
     args = p.parse_args(argv)
 
     if not args.token:
@@ -85,6 +87,9 @@ def main(argv: list[str] | None = None) -> int:
         if not repos:
             print(f"No repositories found for {args.owner}.", file=sys.stderr)
             return 1
+
+    if args.check:
+        return doctor.run(repos, args.token)
 
     out = Path(args.out)
     today = dt.datetime.now(dt.timezone.utc).date().isoformat()
