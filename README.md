@@ -28,7 +28,8 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: write        # to commit the archive back
+  administration: read   # the traffic API refuses anything less
 
 jobs:
   archive:
@@ -58,11 +59,16 @@ for any repository other than the one the workflow runs in.
 
 | What you want to archive | Token |
 |---|---|
-| Only the repo running the workflow | `${{ secrets.GITHUB_TOKEN }}` may work, given `permissions: contents: write` |
+| Only the repo running the workflow | `${{ secrets.GITHUB_TOKEN }}`, with `permissions: administration: read` on the job |
 | Several repos, or another repo | A PAT with the `repo` scope, stored as a secret |
 
-A fine-grained PAT works too: grant **Administration: read** on the repositories
-you want, and nothing else.
+**`contents: write` is not enough** — that grants commit access, not traffic
+access, and the endpoint returns `403`. You need `administration: read`
+specifically. This was verified the hard way: the first run of this repository's
+own archive workflow failed exactly that way.
+
+A fine-grained PAT is the narrowest option for multiple repositories: grant
+**Administration: read** on the ones you want, and nothing else.
 
 ## What you get
 

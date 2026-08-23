@@ -7,7 +7,8 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: write        # to commit the archive back
+  administration: read   # the traffic API refuses anything less
 
 jobs:
   archive:
@@ -17,8 +18,8 @@ jobs:
 
       - uses: ./
         with:
-          # Same-repo archiving works with the built-in token when the job has
-          # contents: write. Archiving other repositories needs a PAT.
+          # The built-in token works for this repository once the job grants
+          # administration: read. Archiving other repositories needs a PAT.
           token: ${{ secrets.GITHUB_TOKEN }}
           repos: ${{ github.repository }}
 
