@@ -2,24 +2,32 @@
 
 Thanks for looking. Small, focused pull requests are easiest to review.
 
+## Choose an issue
+
+Start with the current
+[`good first issue` backlog](https://github.com/HafidIdrissi/github-traffic-archive/labels/good%20first%20issue)
+rather than the larger feature requests. Comment on the issue before starting
+so another contributor does not work on the same change. If the expected
+behaviour is unclear, ask there before writing code.
+
 ## Getting set up
 
 ```bash
-git clone https://github.com/HafidIdrissi/github-traffic-archive
+git clone https://github.com/YOUR-USERNAME/github-traffic-archive.git
 cd github-traffic-archive
-python -m pytest          # no dependencies beyond pytest
+git remote add upstream https://github.com/HafidIdrissi/github-traffic-archive.git
+python -m pip install --upgrade pytest
+python -m pytest
 ```
 
 The package uses the standard library only. Please keep it that way: a
 scheduled workflow that breaks because of a transitive release is worse than a
 few extra lines of `urllib`.
 
-## Good first issues
-
-- Output formats — SQLite, Parquet, or a summary Markdown table
-- A chart generator for the archived series
-- Better handling of very large owners (hundreds of repositories)
-- Documentation, especially on fine-grained PAT permissions
+Before opening a pull request, create a focused branch from the latest
+`upstream/main` and run the complete test suite. Behaviour changes need a test
+that fails before the fix and passes afterwards. Draft pull requests are
+welcome when you want early feedback.
 
 ## What to keep in mind
 
@@ -36,3 +44,10 @@ few extra lines of `urllib`.
 
 Explain why, not just what. If you fixed something subtle, the commit message
 is the right place to record how you found it.
+
+## Pull requests
+
+Keep one problem per pull request and complete the pull request template. Do
+not include generated traffic archives, tokens, editor settings, or unrelated
+formatting changes. A maintainer may ask for a smaller change when a review
+would otherwise cover several independent behaviours.

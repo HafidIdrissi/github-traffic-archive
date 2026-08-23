@@ -14,8 +14,11 @@ tokens are rejected by the endpoint with `403`.
 Consequences to weigh before installing it:
 
 - Store the token as a repository or organisation **secret**. Never inline it.
-- Prefer a **fine-grained PAT** limited to *Administration: read* on exactly the
-  repositories you want archived. It is the narrowest permission that works.
+- A classic PAT with the `repo` scope is the configuration currently verified
+  to work. A fine-grained PAT is narrower, but GitHub does not consistently
+  expose the required permission name. Run `traffic-archive --check` against
+  each target repository before storing a fine-grained token as a secret; when
+  GitHub supplies `X-Accepted-GitHub-Permissions`, the command reports it.
 - The token is passed to the action as an input and used only as a `Bearer`
   header against `api.github.com`. It is never written to the archive, logged,
   or sent anywhere else.

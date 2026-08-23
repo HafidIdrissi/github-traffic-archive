@@ -15,6 +15,20 @@ your history accumulates in your own repository as JSON and CSV.
 No third-party service, no tracking pixel, no account. The data never leaves
 GitHub and your repo.
 
+## Contributors wanted
+
+New contributors are welcome. If you want a small, well-scoped place to
+start, browse the [`good first issue` backlog](https://github.com/HafidIdrissi/github-traffic-archive/labels/good%20first%20issue)
+and comment on an issue before beginning so that work is not duplicated.
+
+- [Contribution guide](CONTRIBUTING.md)
+- [All open issues](https://github.com/HafidIdrissi/github-traffic-archive/issues)
+- [Ask a question](https://github.com/HafidIdrissi/github-traffic-archive/discussions)
+
+Small, focused pull requests are easiest to review. Every pull request runs the
+test suite on Linux and Windows with the oldest and newest supported Python
+versions.
+
 ## Quick start
 
 Add `.github/workflows/traffic.yml`:
@@ -144,9 +158,18 @@ the latter from this API, and any that claims to is guessing.
 
 ## Command line
 
-Works without Actions:
+The CLI also works without Actions. Install the latest stable tag directly
+from GitHub:
 
 ```bash
+python -m pip install "git+https://github.com/HafidIdrissi/github-traffic-archive.git@v1"
+traffic-archive --help
+```
+
+Then provide a token through the environment or with `--token`:
+
+```bash
+# Bash
 export GITHUB_TOKEN=ghp_...
 
 # diagnose the token first — writes nothing
@@ -158,6 +181,9 @@ traffic-archive --repos owner/repo,owner/other
 # or everything you own, forks excluded
 traffic-archive --owner your-username --out traffic
 ```
+
+PowerShell uses `$env:GITHUB_TOKEN = "github_pat_..."`; the remaining commands
+are unchanged.
 
 Standard library only — nothing to install beyond the package itself, and no
 transitive dependency can break your scheduled run.
