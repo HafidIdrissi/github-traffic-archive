@@ -1,0 +1,41 @@
+name: Bug report
+description: Something behaves differently from what the README describes.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before filing: a `403` from the traffic API almost always means the
+        token lacks **push access**. The README's token table covers this.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: Include the command or workflow step, and the output.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+    validations:
+      required: true
+  - type: dropdown
+    id: how
+    attributes:
+      label: How are you running it
+      options: [GitHub Action, Command line, Both]
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: Python version and OS
+    validations:
+      required: false

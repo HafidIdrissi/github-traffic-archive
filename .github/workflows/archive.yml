@@ -1,0 +1,31 @@
+# Dogfooding: this repository archives its own traffic with its own action.
+name: Archive traffic
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./
+        with:
+          # Same-repo archiving works with the built-in token when the job has
+          # contents: write. Archiving other repositories needs a PAT.
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repos: ${{ github.repository }}
+
+      - name: Commit if anything changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add traffic
+          git diff --staged --quiet || git commit -m "chore: archive traffic $(date -u +%F)"
+          git push

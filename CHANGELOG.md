@@ -1,0 +1,15 @@
+# Changelog
+
+## 1.0.0
+
+First release.
+
+- Archives views, clones, referrers and popular paths
+- Merges each fresh 14-day window into accumulated history, newest value
+  winning for a repeated day
+- Stores referrers and paths as dated snapshots, since the API gives them no
+  per-day breakdown
+- Writes JSON and CSV side by side
+- Discovers every non-fork repository for an owner, or takes an explicit list
+- Continues past repositories the token cannot read, and reports them
+- Standard library only

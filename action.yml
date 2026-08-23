@@ -1,0 +1,44 @@
+name: Archive GitHub traffic
+description: >-
+  Snapshot repository views, clones, referrers and paths into your own repo,
+  before GitHub's 14-day window discards them.
+author: Hafid Idrissi
+branding:
+  icon: archive
+  color: orange
+
+inputs:
+  token:
+    description: >-
+      Token with push access to the repositories being archived. The traffic
+      API refuses read-only tokens. For repositories other than the one running
+      the workflow, use a PAT with the `repo` scope.
+    required: true
+  owner:
+    description: Archive every non-fork repository owned by this user or org.
+    required: false
+  repos:
+    description: Comma-separated `owner/name` list. Takes precedence over `owner`.
+    required: false
+  out:
+    description: Directory to write into.
+    required: false
+    default: traffic
+  include-forks:
+    description: Include forks when discovering via `owner`.
+    required: false
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    - name: Archive traffic
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.token }}
+      run: |
+        python "${{ github.action_path }}/src/traffic_archive/cli.py" \
+          --out "${{ inputs.out }}" \
+          ${{ inputs.repos && format('--repos "{0}"', inputs.repos) || '' }} \
+          ${{ inputs.owner && format('--owner "{0}"', inputs.owner) || '' }} \
+          ${{ inputs.include-forks == 'true' && '--include-forks' || '' }}

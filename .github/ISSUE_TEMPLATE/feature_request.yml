@@ -1,0 +1,27 @@
+name: Feature request
+description: Suggest something the tool should do.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve
+      description: Describe the situation, not only the feature.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you have in mind
+    validations:
+      required: false
+  - type: checkboxes
+    id: honesty
+    attributes:
+      label: Data honesty
+      description: >-
+        This tool will not estimate, interpolate or infer data GitHub does not
+        provide — including visitor identities or per-day referrer breakdowns.
+      options:
+        - label: My request does not require inventing data GitHub does not expose.
+          required: true
