@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.0
+
+- The scheduled workflow signs a Sigstore build-provenance attestation for
+  every archive file it changes, before committing. `gh attestation verify`
+  then proves a file is untouched workflow output rather than a hand edit.
+- README gains "What this archive proves — and what it doesn't", stating the
+  exact claim the attestation supports and the one nothing can support.
+
 ## 1.1.0
 
 - `--check` diagnoses a token without writing anything, and surfaces GitHub's

@@ -28,7 +28,9 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write   # to commit the archive back
+  contents: write       # to commit the archive back
+  id-token: write       # optional: sign attestations (see below)
+  attestations: write   # optional: store them
 
 jobs:
   archive:
@@ -40,6 +42,12 @@ jobs:
         with:
           token: ${{ secrets.TRAFFIC_TOKEN }}
           owner: ${{ github.repository_owner }}
+
+      # Optional but recommended: prove the archive is workflow output, not a
+      # hand edit. Requires a public repository. See "What this archive proves".
+      - uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: traffic/**/*.json
 
       - name: Commit if anything changed
         run: |
@@ -153,6 +161,36 @@ traffic-archive --owner your-username --out traffic
 
 Standard library only — nothing to install beyond the package itself, and no
 transitive dependency can break your scheduled run.
+
+## What this archive proves — and what it doesn't
+
+Worth being precise about, because an archive of numbers invites the question.
+
+**The archive is an attestation, not a proof.** The traffic API is readable
+only by repository admins, so no third party can ever check your numbers
+against the source — and after fourteen days GitHub deletes the source, making
+the archive the only witness. A lone witness is not evidence, and a JSON file
+in a repo can be edited by anyone with push access.
+
+What the scheduled workflow does about it: on every run that changes the
+archive, it signs a [build provenance attestation](https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations)
+via Sigstore **before** committing. Anyone can then verify that a given archive
+file is the untouched output of this workflow, at a named commit of this code,
+at a signed timestamp:
+
+```bash
+gh attestation verify traffic/owner__repo/views.json --repo owner/archive-repo
+```
+
+If the file was hand-edited after archiving, verification fails.
+
+The precise claim this supports: *"this file was produced by that public,
+auditable code, from GitHub's API response, at that time."* What it still
+cannot prove is that GitHub's API returned truthful numbers — but note the
+symmetry: the data comes from GitHub and the attestation infrastructure is
+GitHub's too. When the source is a private, self-deleting third party, reducing
+the trust base to that one party is the theoretical best. No traffic tool can
+do better, and any that claims to is wrong.
 
 ## Limits worth knowing before you rely on it
 

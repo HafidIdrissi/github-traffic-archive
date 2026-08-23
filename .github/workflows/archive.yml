@@ -12,7 +12,9 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write   # to commit the archive back
+  contents: write       # to commit the archive back
+  id-token: write       # to sign attestations via Sigstore
+  attestations: write   # to store them on this repository
 
 jobs:
   archive:
@@ -26,8 +28,8 @@ jobs:
         if: env.TRAFFIC_TOKEN == ''
         run: |
           echo "::notice::TRAFFIC_TOKEN is not set, so there is nothing to archive."
-          echo "Create a PAT with the repo scope (or a fine-grained PAT with"
-          echo "Administration: read) and store it as the TRAFFIC_TOKEN secret."
+          echo "Create a PAT (run 'traffic-archive --check' to validate it)"
+          echo "and store it as the TRAFFIC_TOKEN secret."
 
       - uses: ./
         if: env.TRAFFIC_TOKEN != ''
@@ -35,11 +37,39 @@ jobs:
           token: ${{ secrets.TRAFFIC_TOKEN }}
           repos: ${{ github.repository }}
 
-      - name: Commit if anything changed
+      - name: Detect changes
         if: env.TRAFFIC_TOKEN != ''
+        id: diff
+        run: |
+          git add traffic
+          if git diff --staged --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Attest BEFORE committing: the attestation binds the file hashes to this
+      # workflow run, this commit of the archiving code, and this timestamp.
+      # Anyone can then check that an archive file is workflow output rather
+      # than a hand edit:
+      #
+      #   gh attestation verify traffic/<repo>/views.json \
+      #     --repo <owner>/<archive-repo>
+      #
+      # This proves provenance, not truth — see "What this archive proves"
+      # in the README for the precise claim.
+      - name: Attest provenance of the archived data
+        if: env.TRAFFIC_TOKEN != '' && steps.diff.outputs.changed == 'true'
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: |
+            traffic/**/*.json
+            traffic/**/*.csv
+
+      - name: Commit
+        if: env.TRAFFIC_TOKEN != '' && steps.diff.outputs.changed == 'true'
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add traffic
-          git diff --staged --quiet || git commit -m "chore: archive traffic $(date -u +%F)"
+          git commit -m "chore: archive traffic $(date -u +%F)"
           git push
