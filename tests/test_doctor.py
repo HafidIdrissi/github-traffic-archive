@@ -76,16 +76,33 @@ def test_classic_token_without_repo_scope_is_called_out(monkeypatch):
     assert any("`repo` scope" in l for l in lines)
 
 
-def test_403_without_a_header_offers_both_remedies(monkeypatch):
+def test_classic_403_names_the_scope_not_the_fine_grained_advice(monkeypatch):
+    """A classic token exposes its scopes, so the remedy is unambiguous."""
     responder(monkeypatch, {
-        "/user": OK_USER,
+        "/user": OK_USER,                       # has X-OAuth-Scopes
         "/repos/o/r": (200, {}, "{}"),
         "/traffic/views": (403, {}, "{}"),
     })
     ok, lines = doctor.check("o/r", "tok")
-    assert not ok
     joined = " ".join(lines)
-    assert "Classic token" in joined and "Fine-grained token" in joined
+    assert not ok
+    assert "Classic token" in joined
+    assert "Fine-grained" not in joined, "must not offer both when the type is known"
+
+
+def test_fine_grained_403_without_header_admits_the_uncertainty(monkeypatch):
+    """The one case nothing can resolve: say so instead of inventing a name."""
+    responder(monkeypatch, {
+        "/user": (200, {}, '{"login": "someone"}'),   # no scopes -> fine-grained
+        "/repos/o/r": (200, {}, "{}"),
+        "/traffic/views": (403, {}, "{}"),
+    })
+    ok, lines = doctor.check("o/r", "tok")
+    joined = " ".join(lines)
+    assert not ok
+    assert "Fine-grained token" in joined
+    assert "unverified" in joined
+    assert "Classic token missing" not in joined
 
 
 def test_no_token_is_reported_rather_than_crashing(monkeypatch):

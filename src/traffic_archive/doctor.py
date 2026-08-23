@@ -85,13 +85,25 @@ def check(repo: str, token: str) -> tuple[bool, list[str]]:
     out.append(f"  Traffic readable: no ({status})")
     wanted = headers.get("X-Accepted-GitHub-Permissions")
     if wanted:
-        # GitHub tells us exactly what it wanted. Trust this over any doc.
+        # GitHub named the requirement. Trust this over any documentation.
         out.append(f"  GitHub says it requires: {wanted}")
         out.append("  -> Grant exactly that on the token, then re-run this check.")
+    elif status == 403 and scopes:
+        # Classic token: scopes are visible, so the fix is a scope.
+        out.append("  -> Classic token missing the traffic permission.")
+        out.append("     Tick the top-level `repo` scope and regenerate.")
     elif status == 403:
-        out.append("  GitHub did not name a permission, which points to a classic token.")
-        out.append("  -> Classic token: tick the top-level `repo` scope.")
-        out.append("  -> Fine-grained token: grant the repository-administration read permission.")
+        # Fine-grained token. GitHub does not always return the header here,
+        # and its documentation says only "write access" without naming the
+        # fine-grained permission, so this is the one case we cannot resolve
+        # definitively. Say so rather than inventing a name.
+        out.append("  -> Fine-grained token: the repository is visible, so access is")
+        out.append("     granted but a permission is missing. GitHub returned no")
+        out.append("     X-Accepted-GitHub-Permissions header naming which one, and its")
+        out.append("     docs say only \"write access\".")
+        out.append("     Try granting repository Administration (read) — unverified — or")
+        out.append("     use a classic token with the `repo` scope, which is confirmed")
+        out.append("     working. See github.com/HafidIdrissi/github-traffic-archive/issues/2")
     else:
         out.append(f"  Response: {body[:160]}")
     return False, out

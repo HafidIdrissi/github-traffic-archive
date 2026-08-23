@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.2.1
+
+- The archive workflow runs `--check` automatically when archiving fails, so
+  the diagnosis lands in the run log instead of needing a local reproduction.
+- Fixed contradictory advice in `--check`: a missing
+  `X-Accepted-GitHub-Permissions` header no longer implies a classic token. The
+  two token types now get separate, non-overlapping remedies, and the
+  fine-grained case states plainly that the required permission cannot be
+  confirmed rather than guessing at a name.
+
 ## 1.2.0
 
 - The scheduled workflow signs a Sigstore build-provenance attestation for
