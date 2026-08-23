@@ -28,8 +28,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write        # to commit the archive back
-  administration: read   # the traffic API refuses anything less
+  contents: write   # to commit the archive back
 
 jobs:
   archive:
@@ -53,22 +52,27 @@ jobs:
 
 ## The token
 
-**This is the part that trips people up.** GitHub's traffic API requires *push*
-access. A read-only token returns `403`, and so does the default `GITHUB_TOKEN`
-for any repository other than the one the workflow runs in.
+**This is the part that trips people up. You need a personal access token, and
+the built-in `GITHUB_TOKEN` will not work — not even for the repository the
+workflow is running in.**
 
-| What you want to archive | Token |
+That is not a permissions mistake you can configure around. The traffic
+endpoint requires *administration* access, and `administration` is not a
+grantable key in the Actions `permissions:` block; adding it makes GitHub
+reject the workflow with a `422`. `contents: write` grants commit access, not
+traffic access, and the endpoint answers `403`.
+
+Both of those were verified by this repository's own archive workflow failing
+that way, first with `403` and then with `422`.
+
+So: create a token, store it as a secret, pass it in.
+
+| Token type | What to grant |
 |---|---|
-| Only the repo running the workflow | `${{ secrets.GITHUB_TOKEN }}`, with `permissions: administration: read` on the job |
-| Several repos, or another repo | A PAT with the `repo` scope, stored as a secret |
+| Classic PAT | the `repo` scope |
+| Fine-grained PAT | **Administration: read** on the repositories you want, and nothing else |
 
-**`contents: write` is not enough** — that grants commit access, not traffic
-access, and the endpoint returns `403`. You need `administration: read`
-specifically. This was verified the hard way: the first run of this repository's
-own archive workflow failed exactly that way.
-
-A fine-grained PAT is the narrowest option for multiple repositories: grant
-**Administration: read** on the ones you want, and nothing else.
+The fine-grained option is the narrower of the two and is what I would use.
 
 ## What you get
 

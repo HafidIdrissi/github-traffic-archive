@@ -1,4 +1,9 @@
 # Dogfooding: this repository archives its own traffic with its own action.
+#
+# It needs a PAT, not the built-in token. GITHUB_TOKEN cannot read the traffic
+# API under any configuration: the endpoint requires administration access, and
+# `administration` is not a grantable key in the Actions permissions block —
+# GitHub rejects the workflow outright if you try. See README.
 name: Archive traffic
 
 on:
@@ -7,23 +12,31 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write        # to commit the archive back
-  administration: read   # the traffic API refuses anything less
+  contents: write   # to commit the archive back
 
 jobs:
   archive:
     runs-on: ubuntu-latest
+    env:
+      TRAFFIC_TOKEN: ${{ secrets.TRAFFIC_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
+      - name: Explain the skip rather than failing red
+        if: env.TRAFFIC_TOKEN == ''
+        run: |
+          echo "::notice::TRAFFIC_TOKEN is not set, so there is nothing to archive."
+          echo "Create a PAT with the repo scope (or a fine-grained PAT with"
+          echo "Administration: read) and store it as the TRAFFIC_TOKEN secret."
+
       - uses: ./
+        if: env.TRAFFIC_TOKEN != ''
         with:
-          # The built-in token works for this repository once the job grants
-          # administration: read. Archiving other repositories needs a PAT.
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.TRAFFIC_TOKEN }}
           repos: ${{ github.repository }}
 
       - name: Commit if anything changed
+        if: env.TRAFFIC_TOKEN != ''
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
