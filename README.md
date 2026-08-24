@@ -1,37 +1,60 @@
 # github-traffic-archive
 
-**GitHub keeps your traffic data for 14 days, then deletes it. This keeps it.**
+<p align="center">
+  <img src="assets/hero.svg" alt="GitHub's rolling fourteen-day traffic window flowing into a permanent verified archive" width="100%" />
+</p>
 
-[![Tests](https://img.shields.io/github/actions/workflow/status/HafidIdrissi/github-traffic-archive/tests.yml?branch=main&label=tests)](https://github.com/HafidIdrissi/github-traffic-archive/actions/workflows/tests.yml)
-[![License](https://img.shields.io/github/license/HafidIdrissi/github-traffic-archive?color=6366F1)](LICENSE)
-[![Python](https://img.shields.io/badge/Python-3.9%2B-3776AB?logo=python&logoColor=white)](pyproject.toml)
-[![No dependencies](https://img.shields.io/badge/dependencies-none-3DDC97)](pyproject.toml)
+<p align="center">
+  <a href="https://github.com/HafidIdrissi/github-traffic-archive/actions/workflows/tests.yml"><img src="https://img.shields.io/github/actions/workflow/status/HafidIdrissi/github-traffic-archive/tests.yml?branch=main&amp;label=tests&amp;style=for-the-badge&amp;color=34D399" alt="Test status" /></a>
+  <a href="https://github.com/HafidIdrissi/github-traffic-archive/releases"><img src="https://img.shields.io/github/v/release/HafidIdrissi/github-traffic-archive?style=for-the-badge&amp;color=8B5CF6" alt="Latest release" /></a>
+  <a href="pyproject.toml"><img src="https://img.shields.io/badge/Python-3.9%2B-60A5FA?style=for-the-badge&amp;logo=python&amp;logoColor=white" alt="Python 3.9 or newer" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/HafidIdrissi/github-traffic-archive?style=for-the-badge&amp;color=F59E0B" alt="MIT license" /></a>
+</p>
 
-Views, clones, referrers and popular paths are only available for a rolling
-two-week window. Whatever you don't capture is gone permanently — there is no
-export, no archive, and no way to ask for it later. Run this on a schedule and
-your history accumulates in your own repository as JSON and CSV.
+<p align="center">
+  <a href="https://github.com/HafidIdrissi/github-traffic-archive/stargazers"><img src="https://img.shields.io/github/stars/HafidIdrissi/github-traffic-archive?style=flat-square&amp;color=FBBF24" alt="GitHub stars" /></a>
+  <a href="https://github.com/HafidIdrissi/github-traffic-archive/graphs/contributors"><img src="https://img.shields.io/github/contributors/HafidIdrissi/github-traffic-archive?style=flat-square&amp;color=2DD4BF" alt="Contributors" /></a>
+  <a href="https://github.com/HafidIdrissi/github-traffic-archive/issues"><img src="https://img.shields.io/github/issues/HafidIdrissi/github-traffic-archive?style=flat-square&amp;color=60A5FA" alt="Open issues" /></a>
+  <a href="https://github.com/HafidIdrissi/github-traffic-archive/labels/good%20first%20issue"><img src="https://img.shields.io/github/issues/HafidIdrissi/github-traffic-archive/good%20first%20issue?style=flat-square&amp;label=good%20first%20issues&amp;color=A78BFA" alt="Good first issues" /></a>
+</p>
 
-No third-party service, no tracking pixel, no account. The data never leaves
-GitHub and your repo.
+<p align="center">
+  <strong>GitHub deletes repository traffic after 14 days. This action keeps it in your own repository.</strong><br />
+  Views, clones, referrers and popular paths become an accumulating JSON and CSV history—without a tracking pixel or an analytics account.
+</p>
 
-## Contributors wanted
+> [!TIP]
+> **Want to make your first open-source contribution?** Pick a [`good first issue`](https://github.com/HafidIdrissi/github-traffic-archive/labels/good%20first%20issue), leave a comment, and we will avoid duplicating work. Documentation, tests and small fixes are welcome.
 
-New contributors are welcome. If you want a small, well-scoped place to
-start, browse the [`good first issue` backlog](https://github.com/HafidIdrissi/github-traffic-archive/labels/good%20first%20issue)
-and comment on an issue before beginning so that work is not duplicated.
+## Why this exists
 
-- [Contribution guide](CONTRIBUTING.md)
-- [All open issues](https://github.com/HafidIdrissi/github-traffic-archive/issues)
-- [Ask a question](https://github.com/HafidIdrissi/github-traffic-archive/discussions)
+GitHub exposes repository traffic through a rolling two-week window. Miss that window and the older measurements are permanently unavailable through the API.
 
-Small, focused pull requests are easiest to review. Every pull request runs the
-test suite on Linux and Windows with the oldest and newest supported Python
-versions.
+| GitHub gives you | This project adds | You keep |
+|:---|:---|:---|
+| ⏳ A rolling 14-day window | 🔁 A scheduled snapshot and honest merge | 📚 A history that grows over time |
+| 👁️ Views, clones, top referrers and paths | 🧰 A zero-dependency Python action and CLI | 📄 Human-readable JSON and CSV |
+| 🔒 An admin-only API | 🔏 Optional Sigstore provenance | ✅ Verifiable file integrity and origin |
+
+The raw traffic data stays between GitHub and your archive repository. For public repositories, optional attestations publish file hashes and provenance metadata—not the traffic values—to Sigstore's public transparency log.
 
 ## Quick start
 
-Add `.github/workflows/traffic.yml`:
+### 1. Create a token
+
+The recommended setup is a **fine-grained personal access token** limited to the repositories you want to archive, with:
+
+```text
+Repository permissions → Administration → Read-only
+```
+
+A classic PAT with the top-level `repo` scope also works, but grants much broader access. The built-in Actions `GITHUB_TOKEN` cannot read repository traffic; its `permissions:` block has no grantable `administration` key.
+
+Store the PAT as a repository secret named `TRAFFIC_TOKEN`.
+
+### 2. Add one workflow
+
+Create `.github/workflows/traffic.yml` in the repository that will hold the archive:
 
 ```yaml
 name: Archive traffic
@@ -42,9 +65,9 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write       # to commit the archive back
-  id-token: write       # optional: sign attestations (see below)
-  attestations: write   # optional: store them
+  contents: write       # commit the archive
+  id-token: write       # optional: sign provenance
+  attestations: write   # optional: store attestations
 
 jobs:
   archive:
@@ -55,13 +78,15 @@ jobs:
       - uses: HafidIdrissi/github-traffic-archive@v1
         with:
           token: ${{ secrets.TRAFFIC_TOKEN }}
-          owner: ${{ github.repository_owner }}
+          repos: ${{ github.repository }}
 
-      # Optional but recommended: prove the archive is workflow output, not a
-      # hand edit. Requires a public repository. See "What this archive proves".
-      - uses: actions/attest-build-provenance@v4
+      # Optional but recommended for public repositories.
+      - name: Attest archived files
+        uses: actions/attest-build-provenance@v4
         with:
-          subject-path: traffic/**/*.json
+          subject-path: |
+            traffic/**/*.json
+            traffic/**/*.csv
 
       - name: Commit if anything changed
         run: |
@@ -72,171 +97,167 @@ jobs:
           git push
 ```
 
-## The token
+Run it once with **Actions → Archive traffic → Run workflow**. A successful run looks like this:
 
-**This is the part that trips people up. You need a personal access token, and
-the built-in `GITHUB_TOKEN` will not work — not even for the repository the
-workflow is running in.**
+```text
+HafidIdrissi/github-traffic-archive: 26 views / 73 clones across 14 archived days
 
-That is not a permissions mistake you can configure around. The traffic
-endpoint requires *administration* access, and `administration` is not a
-grantable key in the Actions `permissions:` block; adding it makes GitHub
-reject the workflow with a `422`. `contents: write` grants commit access, not
-traffic access, and the endpoint answers `403`.
+1/1 archived into traffic/
+```
 
-Both of those were verified by this repository's own archive workflow failing
-that way, first with `403` and then with `422`.
+## What you get
 
-So: create a token, store it as a secret, pass it in.
+```text
+traffic/
+└── owner__repo/
+    ├── views.json       # merged daily series, oldest to newest
+    ├── views.csv        # same data as date,count,uniques
+    ├── clones.json
+    ├── clones.csv
+    ├── referrers.json   # dated trailing-window snapshots
+    └── paths.json
+```
 
-**Classic PAT with the `repo` scope is the configuration I have verified**
-returns `200` on this endpoint. If you want it working in one attempt, use that.
+| Metric | GitHub returns | Archive strategy |
+|:---|:---|:---|
+| Views | Daily totals for the last 14 days | Merge by UTC date |
+| Clones | Daily totals for the last 14 days | Merge by UTC date |
+| Referrers | Current top ten over the trailing window | Store a dated snapshot |
+| Popular paths | Current top ten over the trailing window | Store a dated snapshot |
 
-A fine-grained PAT is narrower and should work, but GitHub's documentation
-describes the requirement only as "write access" without naming the
-fine-grained permission, so I will not put a specific name here that I have not
-confirmed. Instead, ask GitHub — see below.
+No database. No dashboard to keep alive. The repository is the datastore.
 
-### Ask GitHub what it wants
+## Help build it
+
+This project is intentionally small: it is a practical place to learn Python, GitHub Actions, REST APIs, testing and software provenance without first understanding a large codebase.
+
+| If you enjoy… | Good contribution areas |
+|:---|:---|
+| ✍️ Clear writing | Examples, troubleshooting, translations and documentation |
+| 🐍 Python | API behavior, CLI ergonomics, validation and output formats |
+| 🧪 Testing | Edge cases, Windows coverage and regression tests |
+| 🔐 Security | Least-privilege tokens, Actions hardening and attestations |
+| 🎨 Developer experience | Better diagnostics, reports and archive visualizations |
+
+### Your first pull request
+
+1. Browse the [`good first issue` backlog](https://github.com/HafidIdrissi/github-traffic-archive/labels/good%20first%20issue) or [open a discussion](https://github.com/HafidIdrissi/github-traffic-archive/discussions).
+2. Comment on the issue before starting so nobody duplicates your work.
+3. Fork the repository, create a focused branch, and run `python -m pytest`.
+4. Open a small pull request explaining the problem and your approach.
+
+Useful project links:
+
+- [Contribution guide](CONTRIBUTING.md)
+- [Open issues](https://github.com/HafidIdrissi/github-traffic-archive/issues)
+- [Feature requests](https://github.com/HafidIdrissi/github-traffic-archive/issues/new?template=feature_request.yml)
+- [Discussions](https://github.com/HafidIdrissi/github-traffic-archive/discussions)
+- [Code of conduct](CODE_OF_CONDUCT.md)
+
+Focused pull requests are the easiest to review. Every pull request runs the suite on Linux and Windows with the oldest and newest supported Python versions.
+
+## Diagnose a token before scheduling
+
+Authentication failures often look identical from outside: an invalid token, an invisible repository and a missing permission need different fixes. Ask the API directly before relying on the schedule:
 
 ```bash
 traffic-archive --check --repos owner/repo --token YOUR_TOKEN
 ```
 
-This writes nothing. It reports whether the token is valid, whether it can see
-the repository, and whether traffic is readable — and on a `403` from a
-fine-grained token it prints GitHub's own `X-Accepted-GitHub-Permissions`
-header, which names the exact permission required.
+This writes nothing. It checks the token identity, repository visibility and the traffic endpoint itself.
 
-```
+```text
 owner/repo
   Token authenticates as: someone
-  Token type: classic or OAuth
-  Scopes: gist, read:org, repo, workflow
+  Token type: fine-grained (or scopeless)
   Repository visible: owner/repo
   Traffic readable: yes (14 days returned)
 
 All good — archiving will work with this token.
 ```
 
-The three failure modes look identical from the outside and need completely
-different fixes — an invalid token, a repository the token cannot see, and a
-missing permission. `--check` tells them apart.
-
-## What you get
-
-```
-traffic/
-└── owner__repo/
-    ├── views.json       merged daily series, oldest to newest
-    ├── views.csv        same, as date,count,uniques
-    ├── clones.json
-    ├── clones.csv
-    ├── referrers.json   dated snapshots — see below
-    └── paths.json
-```
-
-## How merging works
-
-When the same date appears in both your archive and a fresh response, **the
-fresh value wins**. A day's count keeps growing until that day closes in UTC, so
-a number read at 08:00 is a lower bound on the same day read at 23:00. Keeping
-the older value would permanently understate every day you archived more than
-once.
-
-Referrers and paths are **not** a time series — the API reports the top ten over
-the trailing fourteen days with no per-day breakdown. Merging them would invent
-data, so they are stored as dated snapshots instead. Re-running on the same date
-replaces that date's snapshot rather than appending a near-duplicate.
-
-## Reading `uniques` honestly
-
-`uniques` is summed per day, which is what GitHub reports. It is **not** a count
-of distinct people over the period: someone who visits on three days is counted
-three times. Treat it as daily reach, not audience size. No tool can give you
-the latter from this API, and any that claims to is guessing.
+> [!IMPORTANT]
+> Never paste a PAT into an issue, discussion, screenshot or workflow file. Store it in Actions secrets and give it the shortest useful lifetime.
 
 ## Command line
 
-The CLI also works without Actions. Install the latest stable tag directly
-from GitHub:
+Install the latest stable major version directly from GitHub:
 
 ```bash
 python -m pip install "git+https://github.com/HafidIdrissi/github-traffic-archive.git@v1"
 traffic-archive --help
 ```
 
-Then provide a token through the environment or with `--token`:
+Then use a token from the environment or pass `--token` explicitly:
 
 ```bash
 # Bash
 export GITHUB_TOKEN=ghp_...
 
-# diagnose the token first — writes nothing
+# diagnose first — writes nothing
 traffic-archive --check --repos owner/repo
 
 # one or more repositories
 traffic-archive --repos owner/repo,owner/other
 
-# or everything you own, forks excluded
+# or every non-fork repository you own
 traffic-archive --owner your-username --out traffic
 ```
 
-PowerShell uses `$env:GITHUB_TOKEN = "github_pat_..."`; the remaining commands
-are unchanged.
+PowerShell uses `$env:GITHUB_TOKEN = "github_pat_..."`; the remaining commands are unchanged.
 
-Standard library only — nothing to install beyond the package itself, and no
-transitive dependency can break your scheduled run.
+The package uses only the Python standard library—there are no runtime dependencies or transitive releases that can break a scheduled run.
 
-## What this archive proves — and what it doesn't
+## How merging stays honest
 
-Worth being precise about, because an archive of numbers invites the question.
+### Daily views and clones
 
-**The archive is an attestation, not a proof.** The traffic API is readable
-only by repository admins, so no third party can ever check your numbers
-against the source — and after fourteen days GitHub deletes the source, making
-the archive the only witness. A lone witness is not evidence, and a JSON file
-in a repo can be edited by anyone with push access.
+When the same UTC date exists in the archive and a fresh response, **the fresh value wins**. A current day's count can grow, so the newest reading is the best available value. Stored dates that have fallen out of GitHub's window remain untouched.
 
-What the scheduled workflow does about it: on every run that changes the
-archive, it signs a [build provenance attestation](https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations)
-via Sigstore **before** committing. Anyone can then verify that a given archive
-file is the untouched output of this workflow, at a named commit of this code,
-at a signed timestamp:
+### Referrers and popular paths
+
+These endpoints return a top ten for the whole trailing window, not a per-day series. Combining rows would invent precision that GitHub never provided, so the archive stores dated snapshots instead. A second run on the same date replaces that date's snapshot.
+
+### Reading `uniques` correctly
+
+`uniques` is summed per day because that is what GitHub reports. It is **not** a distinct-person count across the full archive: one person visiting on three different days can contribute three daily uniques. Treat it as daily reach, not audience size.
+
+## What the attestation proves
+
+The archive is evidence with verifiable provenance, not an independent proof of traffic truth.
+
+On each changed run, GitHub Actions can sign the archived files through Sigstore before they are committed. Verification binds a file digest to:
+
+- the public workflow identity;
+- the exact source commit used by the run;
+- a GitHub-hosted runner and triggering event;
+- a signed timestamp recorded in a transparency log.
+
+Verify a file with:
 
 ```bash
-gh attestation verify traffic/owner__repo/views.json --repo owner/archive-repo
+gh attestation verify traffic/owner__repo/views.json \
+  --repo owner/archive-repo \
+  --signer-workflow owner/archive-repo/.github/workflows/traffic.yml
 ```
 
-If the file was hand-edited after archiving, verification fails.
+If the file changes after attestation, verification fails. This establishes integrity and provenance. It cannot independently prove that GitHub's private API returned truthful numbers, and no third party can query historical source data after GitHub deletes it.
 
-The precise claim this supports: *"this file was produced by that public,
-auditable code, from GitHub's API response, at that time."* What it still
-cannot prove is that GitHub's API returned truthful numbers — but note the
-symmetry: the data comes from GitHub and the attestation infrastructure is
-GitHub's too. When the source is a private, self-deleting third party, reducing
-the trust base to that one party is the theoretical best. No traffic tool can
-do better, and any that claims to is wrong.
+> [!NOTE]
+> On Windows, line-ending conversion can change a checked-out file's digest. Clone with `git -c core.autocrlf=false clone ...` before verification, or enforce LF for archived JSON and CSV files with `.gitattributes`.
 
-## Limits worth knowing before you rely on it
+## Limits worth knowing
 
-- **It cannot backfill.** History starts the day you first run it. Everything
-  before that is already deleted.
-- **It cannot tell you who visited.** GitHub exposes no identities, and neither
-  does this. If you want that, no tool can honestly provide it.
-- **Repository traffic is not profile traffic.** Views of
-  `github.com/you/you` are not views of `github.com/you`. GitHub publishes no
-  metric for the latter; any "profile views" badge is a third-party pixel
-  counting proxy fetches.
-- **A gap in your schedule is a gap in your data.** If the workflow is broken
-  for more than fourteen days, those days are unrecoverable.
+- **Limited initial backfill:** the first run can capture whatever is still present in GitHub's current 14-day window—nothing older.
+- **No visitor identities:** GitHub exposes counts, not the people behind them.
+- **Repository traffic is not profile traffic:** `github.com/you/you` and `github.com/you` are different pages; GitHub publishes no profile-view metric.
+- **Schedule gaps matter:** after more than 14 days without a successful run, missing history is unrecoverable.
+- **Attestations prove provenance, not truth:** they make later edits detectable but do not turn private API measurements into independently reproducible facts.
 
-## Contributing
+## License
 
-Issues and pull requests welcome — bug reports, documentation, and support for
-other output formats are all good places to start. `CONTRIBUTING.md` has the
-details; the test suite runs with `python -m pytest`.
+Released under the [MIT License](LICENSE). Use it, improve it, and share what you build.
 
-## Licence
-
-MIT. See [LICENSE](LICENSE).
+<p align="center">
+  <strong>If this saves your traffic history, consider giving the project a ⭐ and helping with one issue.</strong>
+</p>
