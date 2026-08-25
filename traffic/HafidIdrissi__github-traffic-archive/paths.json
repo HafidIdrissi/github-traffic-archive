@@ -63,5 +63,70 @@
         "uniques": 1
       }
     ]
+  },
+  {
+    "taken_on": "2026-08-25",
+    "rows": [
+      {
+        "path": "/HafidIdrissi/github-traffic-archive",
+        "title": "Overview",
+        "count": 6,
+        "uniques": 1
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/actions",
+        "title": "/actions",
+        "count": 5,
+        "uniques": 1
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/issues",
+        "title": "/issues",
+        "count": 3,
+        "uniques": 1
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/actions/runs/32636658820",
+        "title": "/actions/runs/32636658820",
+        "count": 2,
+        "uniques": 1
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/agents",
+        "title": "/agents",
+        "count": 2,
+        "uniques": 1
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/actions/runs/32636588327",
+        "title": "/actions/runs/32636588327",
+        "count": 1,
+        "uniques": 1
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/actions/runs/32638146079",
+        "title": "/actions/runs/32638146079",
+        "count": 1,
+        "uniques": 1
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/actions/workflows/archive.yml",
+        "title": "/actions/workflows/archive.yml",
+        "count": 1,
+        "uniques": 1
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/blob/main/LICENSE",
+        "title": "/blob/main/LICENSE",
+        "count": 1,
+        "uniques": 1
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/discussions",
+        "title": "/discussions",
+        "count": 1,
+        "uniques": 1
+      }
+    ]
   }
 ]
