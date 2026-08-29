@@ -48,14 +48,17 @@ def test_owned_repos_includes_forks_when_requested(fake_request):
 
 
 def test_owned_repos_returns_sorted_and_unique_names(fake_request):
-    # Simulate pagination returning duplicate entries out of order
+    """
+    Verify that owned_repos correctly handles duplicate repository names and returns them in alphabetical order.
+    The duplicate entry ('myorg/repo-a') is provided in page 1 to guarantee deduplication logic without triggering
+    pagination early termination.
+    """
     fake_request["/user/repos?per_page=100&page=1&affiliation=owner"] = [
         {"full_name": "myorg/repo-z", "owner": {"login": "myorg"}, "fork": False},
         {"full_name": "myorg/repo-a", "owner": {"login": "myorg"}, "fork": False},
-    ]
-    fake_request["/user/repos?per_page=100&page=2&affiliation=owner"] = [
         {"full_name": "myorg/repo-a", "owner": {"login": "myorg"}, "fork": False},
     ]
 
     repos = api.owned_repos("myorg", "tok")
     assert repos == ["myorg/repo-a", "myorg/repo-z"]
+   
