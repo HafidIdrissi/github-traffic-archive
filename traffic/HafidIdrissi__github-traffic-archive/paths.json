@@ -323,5 +323,70 @@
         "uniques": 1
       }
     ]
+  },
+  {
+    "taken_on": "2026-08-29",
+    "rows": [
+      {
+        "path": "/HafidIdrissi/github-traffic-archive",
+        "title": "Overview",
+        "count": 21,
+        "uniques": 3
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/issues/10",
+        "title": "/issues/10",
+        "count": 7,
+        "uniques": 4
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/issues",
+        "title": "/issues",
+        "count": 7,
+        "uniques": 3
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/releases/edit/v1.2.1",
+        "title": "/releases/edit/v1.2.1",
+        "count": 6,
+        "uniques": 1
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/releases/tag/v1.2.1",
+        "title": "/releases/tag/v1.2.1",
+        "count": 5,
+        "uniques": 2
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/actions",
+        "title": "/actions",
+        "count": 5,
+        "uniques": 1
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/pulls",
+        "title": "/pulls",
+        "count": 3,
+        "uniques": 3
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/pull/11",
+        "title": "/pull/11",
+        "count": 3,
+        "uniques": 1
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/actions/runs/32636658820",
+        "title": "/actions/runs/32636658820",
+        "count": 2,
+        "uniques": 1
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/actions/runs/32638146079",
+        "title": "/actions/runs/32638146079",
+        "count": 2,
+        "uniques": 1
+      }
+    ]
   }
 ]
