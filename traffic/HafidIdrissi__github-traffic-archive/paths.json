@@ -388,5 +388,70 @@
         "uniques": 1
       }
     ]
+  },
+  {
+    "taken_on": "2026-08-30",
+    "rows": [
+      {
+        "path": "/HafidIdrissi/github-traffic-archive",
+        "title": "Overview",
+        "count": 31,
+        "uniques": 5
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/pull/11",
+        "title": "/pull/11",
+        "count": 28,
+        "uniques": 3
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/issues/10",
+        "title": "/issues/10",
+        "count": 25,
+        "uniques": 7
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/issues",
+        "title": "/issues",
+        "count": 24,
+        "uniques": 5
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/pulls",
+        "title": "/pulls",
+        "count": 13,
+        "uniques": 3
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/issues/7",
+        "title": "/issues/7",
+        "count": 7,
+        "uniques": 3
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/pull/11/commits",
+        "title": "/pull/11/commits",
+        "count": 6,
+        "uniques": 2
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/releases/edit/v1.2.1",
+        "title": "/releases/edit/v1.2.1",
+        "count": 6,
+        "uniques": 1
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/pull/11/changes",
+        "title": "/pull/11/changes",
+        "count": 5,
+        "uniques": 3
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/releases/tag/v1.2.1",
+        "title": "/releases/tag/v1.2.1",
+        "count": 5,
+        "uniques": 2
+      }
+    ]
   }
 ]
