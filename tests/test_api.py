@@ -61,4 +61,4 @@ def test_owned_repos_returns_sorted_and_unique_names(fake_request):
 
     repos = api.owned_repos("myorg", "tok")
     assert repos == ["myorg/repo-a", "myorg/repo-z"]
-   
+
