@@ -21,6 +21,16 @@ def fake_api(monkeypatch):
     return state
 
 
+def test_cli_version_flag(capsys):
+    """Verify --version outputs program name and version, exiting with status 0 without requiring tokens."""
+    with pytest.raises(SystemExit) as exc_info:
+        cli.main(["--version"])
+
+    assert exc_info.value.code == 0
+    captured = capsys.readouterr()
+    assert "traffic-archive " in captured.out
+
+
 def test_archive_writes_json_and_csv_per_metric(tmp_path, fake_api):
     cli.archive_repo("owner/repo", "tok", tmp_path, "2026-01-02")
     base = tmp_path / "owner__repo"
