@@ -648,5 +648,70 @@
         "uniques": 1
       }
     ]
+  },
+  {
+    "taken_on": "2026-09-03",
+    "rows": [
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/pull/11",
+        "title": "/pull/11",
+        "count": 41,
+        "uniques": 4
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive",
+        "title": "Overview",
+        "count": 40,
+        "uniques": 6
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/issues",
+        "title": "/issues",
+        "count": 28,
+        "uniques": 5
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/issues/10",
+        "title": "/issues/10",
+        "count": 27,
+        "uniques": 7
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/pulls",
+        "title": "/pulls",
+        "count": 19,
+        "uniques": 4
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/issues/7",
+        "title": "/issues/7",
+        "count": 12,
+        "uniques": 4
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/pull/11/changes",
+        "title": "/pull/11/changes",
+        "count": 9,
+        "uniques": 3
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/pull/11/commits",
+        "title": "/pull/11/commits",
+        "count": 9,
+        "uniques": 3
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/blob/main/CONTRIBUTING.md",
+        "title": "/blob/main/CONTRIBUTING.md",
+        "count": 7,
+        "uniques": 1
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/releases/edit/v1.2.1",
+        "title": "/releases/edit/v1.2.1",
+        "count": 6,
+        "uniques": 1
+      }
+    ]
   }
 ]
