@@ -10,7 +10,7 @@ import os
 import sys
 from pathlib import Path
 
-from . import api, doctor
+from . import __version__, api, doctor
 from .merge import append_snapshot, merge_timeseries, to_csv_rows, totals
 
 
@@ -64,6 +64,11 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(
         prog="traffic-archive",
         description="Archive GitHub traffic data before the 14-day window discards it.",
+    )
+    p.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}",
     )
     p.add_argument("--owner", help="Archive every repository owned by this user or org.")
     p.add_argument("--repos", help="Comma-separated owner/name list. Overrides --owner discovery.")
