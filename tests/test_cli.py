@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from traffic_archive import __version__,api, cli
+from traffic_archive import __version__, api, cli
 
 
 @pytest.fixture
@@ -29,6 +29,7 @@ def test_cli_version_flag(capsys):
     assert exc_info.value.code == 0
     captured = capsys.readouterr()
     assert captured.out == f"traffic-archive {__version__}\n"
+
 
 def test_archive_writes_json_and_csv_per_metric(tmp_path, fake_api):
     cli.archive_repo("owner/repo", "tok", tmp_path, "2026-01-02")
@@ -93,4 +94,3 @@ def test_missing_token_is_rejected(tmp_path, monkeypatch):
 def test_nothing_to_archive_is_rejected(tmp_path):
     with pytest.raises(SystemExit):
         cli.main(["--token", "tok", "--out", str(tmp_path)])
-
