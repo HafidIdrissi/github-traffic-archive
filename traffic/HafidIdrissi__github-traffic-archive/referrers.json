@@ -148,5 +148,15 @@
         "uniques": 8
       }
     ]
+  },
+  {
+    "taken_on": "2026-09-08",
+    "rows": [
+      {
+        "referrer": "github.com",
+        "count": 129,
+        "uniques": 7
+      }
+    ]
   }
 ]
