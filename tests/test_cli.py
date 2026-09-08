@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from traffic_archive import api, cli
+from traffic_archive import __version__, api, cli
 
 
 @pytest.fixture
@@ -19,6 +19,16 @@ def fake_api(monkeypatch):
     monkeypatch.setattr(api, "referrers", lambda r, t: state["referrers"])
     monkeypatch.setattr(api, "paths", lambda r, t: state["paths"])
     return state
+
+
+def test_cli_version_flag(capsys):
+    """Verify --version outputs program name and version, exiting with status 0 without requiring tokens."""
+    with pytest.raises(SystemExit) as exc_info:
+        cli.main(["--version"])
+
+    assert exc_info.value.code == 0
+    captured = capsys.readouterr()
+    assert captured.out == f"traffic-archive {__version__}\n"
 
 
 def test_archive_writes_json_and_csv_per_metric(tmp_path, fake_api):
