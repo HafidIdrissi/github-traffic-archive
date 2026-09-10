@@ -42,11 +42,16 @@ def _request(path: str, token: str, retries: int = 3) -> Any:
                 last = err
                 time.sleep(2 ** attempt * 5)
                 continue
-            if err.code in (401, 403):
+            if err.code == 401:
                 raise TrafficError(
-                    f"{path} returned {err.code}. The traffic API requires push "
-                    f"access to the repository. A token with only read access, "
-                    f"or the default GITHUB_TOKEN in a fork, will fail here. {body}"
+                    f"{path} returned 401. The token may be invalid, expired, or malformed. "
+                    "Create a new token and check that it was copied completely."
+                ) from err
+            if err.code == 403:
+                raise TrafficError(
+                    f"{path} returned 403. Confirm that the token can access this repository and, "
+                    "for a fine-grained personal access token, grant Repository permissions -> "
+                    "Administration: Read-only."
                 ) from err
             if err.code == 404:
                 raise TrafficError(
