@@ -1298,5 +1298,70 @@
         "uniques": 3
       }
     ]
+  },
+  {
+    "taken_on": "2026-09-13",
+    "rows": [
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/pull/12",
+        "title": "/pull/12",
+        "count": 25,
+        "uniques": 3
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive",
+        "title": "Overview",
+        "count": 22,
+        "uniques": 4
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/pull/11",
+        "title": "/pull/11",
+        "count": 18,
+        "uniques": 4
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/issues",
+        "title": "/issues",
+        "count": 18,
+        "uniques": 2
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/pulls",
+        "title": "/pulls",
+        "count": 14,
+        "uniques": 4
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/issues/7",
+        "title": "/issues/7",
+        "count": 7,
+        "uniques": 3
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/blob/main/CONTRIBUTING.md",
+        "title": "/blob/main/CONTRIBUTING.md",
+        "count": 7,
+        "uniques": 1
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/pull/12/commits",
+        "title": "/pull/12/commits",
+        "count": 6,
+        "uniques": 1
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/issues/5",
+        "title": "/issues/5",
+        "count": 4,
+        "uniques": 2
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/pull/11/changes",
+        "title": "/pull/11/changes",
+        "count": 4,
+        "uniques": 2
+      }
+    ]
   }
 ]
