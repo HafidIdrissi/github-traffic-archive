@@ -1,3 +1,4 @@
+import argparse
 import json
 
 import pytest
@@ -94,3 +95,34 @@ def test_missing_token_is_rejected(tmp_path, monkeypatch):
 def test_nothing_to_archive_is_rejected(tmp_path):
     with pytest.raises(SystemExit):
         cli.main(["--token", "tok", "--out", str(tmp_path)])
+
+
+def test_valid_repos_parsing():
+    parsed = cli.parse_repo_arg(" owner/repo1 , owner/repo2 ")
+    assert parsed == ["owner/repo1", "owner/repo2"]
+
+
+@pytest.mark.parametrize(
+    "invalid_input",
+    [
+        "owner-only",
+        "/repo",
+        "owner/",
+        "owner/repo/extra",
+        "",
+        "owner/repo, bad_repo",
+    ],
+)
+def test_invalid_repos_format_rejected(invalid_input):
+    with pytest.raises(argparse.ArgumentTypeError) as exc_info:
+        cli.parse_repo_arg(invalid_input)
+    assert "'owner/name'" in str(exc_info.value)
+
+
+def test_cli_rejects_invalid_repo_and_exits(capsys):
+    with pytest.raises(SystemExit) as exc_info:
+        cli.main(["--repos", "invalid-format", "--token", "tok", "--out", "traffic"])
+
+    assert exc_info.value.code != 0
+    captured = capsys.readouterr()
+    assert "Expected 'owner/name'" in captured.err
