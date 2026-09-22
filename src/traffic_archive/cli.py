@@ -14,6 +14,21 @@ from . import __version__, api, doctor
 from .merge import append_snapshot, merge_timeseries, to_csv_rows, totals
 
 
+def parse_repo_arg(repo_str: str) -> list[str]:
+    """Validate comma-separated --repos entries match 'owner/name' format."""
+    repos = [r.strip() for r in repo_str.split(",") if r.strip()]
+    if not repos:
+        raise argparse.ArgumentTypeError("Must provide at least one repository in 'owner/name' format.")
+
+    for repo in repos:
+        parts = repo.split("/")
+        if len(parts) != 2 or not parts[0] or not parts[1]:
+            raise argparse.ArgumentTypeError(
+                f"Invalid repository format '{repo}'. Expected 'owner/name' (e.g. 'owner/repo')."
+            )
+    return repos
+
+
 def _slug(repo: str) -> str:
     return repo.replace("/", "__")
 
@@ -71,7 +86,11 @@ def main(argv: list[str] | None = None) -> int:
         version=f"%(prog)s {__version__}",
     )
     p.add_argument("--owner", help="Archive every repository owned by this user or org.")
-    p.add_argument("--repos", help="Comma-separated owner/name list. Overrides --owner discovery.")
+    p.add_argument(
+        "--repos",
+        type=parse_repo_arg,
+        help="Comma-separated owner/name list. Overrides --owner discovery.",
+    )
     p.add_argument("--out", default="traffic", help="Output directory (default: traffic).")
     p.add_argument("--include-forks", action="store_true", help="Include forks when using --owner.")
     p.add_argument("--token", default=os.environ.get("GITHUB_TOKEN", ""),
@@ -86,7 +105,7 @@ def main(argv: list[str] | None = None) -> int:
         p.error("Nothing to archive. Pass --repos or --owner.")
 
     if args.repos:
-        repos = [r.strip() for r in args.repos.split(",") if r.strip()]
+        repos = args.repos
     else:
         repos = api.owned_repos(args.owner, args.token, args.include_forks)
         if not repos:
