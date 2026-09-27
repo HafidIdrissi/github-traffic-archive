@@ -16,16 +16,19 @@ from .merge import append_snapshot, merge_timeseries, to_csv_rows, totals
 
 def parse_repo_arg(repo_str: str) -> list[str]:
     """Validate comma-separated --repos entries match 'owner/name' format."""
-    repos = [r.strip() for r in repo_str.split(",") if r.strip()]
-    if not repos:
+    raw_entries = repo_str.split(",")
+    if not raw_entries or all(not r.strip() for r in raw_entries):
         raise argparse.ArgumentTypeError("Must provide at least one repository in 'owner/name' format.")
 
-    for repo in repos:
+    repos = []
+    for raw in raw_entries:
+        repo = raw.strip()
         parts = repo.split("/")
         if len(parts) != 2 or not parts[0] or not parts[1]:
             raise argparse.ArgumentTypeError(
                 f"Invalid repository format '{repo}'. Expected 'owner/name' (e.g. 'owner/repo')."
             )
+        repos.append(repo)
     return repos
 
 

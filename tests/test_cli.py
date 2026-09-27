@@ -111,6 +111,9 @@ def test_valid_repos_parsing():
         "owner/repo/extra",
         "",
         "owner/repo, bad_repo",
+        "owner/repo,",
+        "owner/repo,,owner/repo2",
+        " , owner/repo",
     ],
 )
 def test_invalid_repos_format_rejected(invalid_input):
