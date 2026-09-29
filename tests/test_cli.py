@@ -102,6 +102,54 @@ def test_valid_repos_parsing():
     assert parsed == ["owner/repo1", "owner/repo2"]
 
 
+def test_parse_repo_arg_deduplicates_preserving_first_occurrence_order():
+    parsed = cli.parse_repo_arg("owner/a, owner/a , owner/b,owner/a, owner/b ")
+    assert parsed == ["owner/a", "owner/b"]
+
+
+def test_cli_repos_deduplicates_and_archives_each_repo_once(tmp_path, monkeypatch, fake_api, capsys):
+    fetched_views: list[str] = []
+    real_views = api.views
+
+    def tracking_views(repo, token, per="day"):
+        fetched_views.append(repo)
+        return real_views(repo, token, per)
+
+    monkeypatch.setattr(api, "views", tracking_views)
+
+    code = cli.main([
+        "--repos", "owner/a, owner/a ,owner/b,owner/a",
+        "--token", "tok",
+        "--out", str(tmp_path),
+    ])
+
+    assert code == 0
+    assert fetched_views == ["owner/a", "owner/b"]
+    captured = capsys.readouterr()
+    assert "2/2 archived into" in captured.out
+
+
+def test_cli_rejects_invalid_entry_after_duplicate_before_any_api_request(tmp_path, monkeypatch, fake_api):
+    called = False
+
+    def fail_if_called(repo, token, per="day"):
+        nonlocal called
+        called = True
+        return []
+
+    monkeypatch.setattr(api, "views", fail_if_called)
+
+    with pytest.raises(SystemExit) as exc_info:
+        cli.main([
+            "--repos", "owner/a,owner/a,invalid-repo",
+            "--token", "tok",
+            "--out", str(tmp_path),
+        ])
+
+    assert exc_info.value.code != 0
+    assert not called
+
+
 @pytest.mark.parametrize(
     "invalid_input",
     [
@@ -129,3 +177,4 @@ def test_cli_rejects_invalid_repo_and_exits(capsys):
     assert exc_info.value.code != 0
     captured = capsys.readouterr()
     assert "Expected 'owner/name'" in captured.err
+
