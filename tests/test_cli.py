@@ -129,3 +129,21 @@ def test_cli_rejects_invalid_repo_and_exits(capsys):
     assert exc_info.value.code != 0
     captured = capsys.readouterr()
     assert "Expected 'owner/name'" in captured.err
+
+
+def test_repos_deduplication_preserves_order():
+    parsed = cli.parse_repo_arg("owner/a,owner/a,owner/b")
+    assert parsed == ["owner/a", "owner/b"]
+
+
+def test_repos_deduplication_with_whitespace():
+    parsed = cli.parse_repo_arg("  owner/a  , owner/a,   owner/b ")
+    assert parsed == ["owner/a", "owner/b"]
+
+
+def test_cli_archives_duplicate_repos_only_once(tmp_path, fake_api, capsys):
+    code = cli.main(["--repos", "owner/repo,owner/repo", "--token", "tok", "--out", str(tmp_path)])
+    assert code == 0
+    captured = capsys.readouterr()
+    assert "1/1 archived into" in captured.out
+
