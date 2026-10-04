@@ -17,6 +17,7 @@ git clone https://github.com/YOUR-USERNAME/github-traffic-archive.git
 cd github-traffic-archive
 git remote add upstream https://github.com/HafidIdrissi/github-traffic-archive.git
 python -m pip install --upgrade pytest
+python -m pip install --no-deps -e .
 python -m pytest
 ```
 

@@ -12,6 +12,12 @@ requires-python = ">=3.9"
 dependencies = []
 keywords = ["github", "traffic", "analytics", "github-actions", "self-hosted"]
 
+[project.urls]
+Homepage = "https://github.com/HafidIdrissi/github-traffic-archive"
+Repository = "https://github.com/HafidIdrissi/github-traffic-archive"
+Issues = "https://github.com/HafidIdrissi/github-traffic-archive/issues"
+Changelog = "https://github.com/HafidIdrissi/github-traffic-archive/blob/main/CHANGELOG.md"
+
 [project.scripts]
 traffic-archive = "traffic_archive.cli:main"
 

@@ -23,6 +23,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - run: python -m pip install --upgrade pip pytest
+      - run: python -m pip install --no-deps .
       - run: python -m pytest -q
 
       # Guards the exact invocation action.yml uses. Running cli.py as a
