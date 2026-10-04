@@ -149,6 +149,7 @@ This project is intentionally small: it is a practical place to learn Python, Gi
 Useful project links:
 
 - [Contribution guide](CONTRIBUTING.md)
+- [Sharing diagnostics safely](docs/SHARING_DIAGNOSTICS.md)
 - [Open issues](https://github.com/HafidIdrissi/github-traffic-archive/issues)
 - [Feature requests](https://github.com/HafidIdrissi/github-traffic-archive/issues/new?template=feature_request.yml)
 - [Discussions](https://github.com/HafidIdrissi/github-traffic-archive/discussions)
