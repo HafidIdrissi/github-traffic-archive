@@ -24,13 +24,23 @@ OK_USER = (200, {"X-OAuth-Scopes": "repo, gist"}, '{"login": "someone"}')
 
 
 def test_reports_success_when_traffic_is_readable(monkeypatch):
-    responder(monkeypatch, {
+    responses = {
         "/user": OK_USER,
-        "/traffic/views": (200, {}, '{"views": [{}, {}]}'),
         "/repos/o/r": (200, {}, "{}"),
-    })
-    ok, lines = doctor.check("o/r", "tok")
+        "/repos/o/r/traffic/views?per=day": (200, {}, '{"views": [{}, {}]}'),
+    }
+    calls = []
+
+    def fake_probe(path, token):
+        assert token == "dummy-token"
+        calls.append(path)
+        return responses[path]
+
+    monkeypatch.setattr(doctor, "_probe", fake_probe)
+    ok, lines = doctor.check("o/r", "dummy-token")
     assert ok
+    assert calls == ["/user", "/repos/o/r", "/repos/o/r/traffic/views?per=day"]
+    assert any("Token authenticates as: someone" in l for l in lines)
     assert any("Traffic readable: yes" in l for l in lines)
 
 
@@ -39,6 +49,55 @@ def test_invalid_token_is_named_as_such(monkeypatch):
     ok, lines = doctor.check("o/r", "tok")
     assert not ok
     assert any("invalid, expired or revoked" in l for l in lines)
+
+
+@pytest.mark.parametrize("status", [403, 429, 500])
+def test_unexpected_user_status_stops_before_repository_probes(monkeypatch, status):
+    calls = []
+
+    def fake_probe(path, token):
+        assert token == "dummy-token"
+        calls.append(path)
+        assert path == "/user"
+        return status, {}, "private response body"
+
+    monkeypatch.setattr(doctor, "_probe", fake_probe)
+    ok, lines = doctor.check("o/r", "dummy-token")
+    report = " ".join(lines)
+
+    assert not ok
+    assert calls == ["/user"]
+    assert f"HTTP {status}" in report
+    assert "authentication could not be confirmed" in report.lower()
+    assert "Token authenticates as" not in report
+    assert "Repository visible" not in report
+    assert "Traffic readable: yes" not in report
+    assert "dummy-token" not in report
+    assert "private response body" not in report
+    if status in (429, 500):
+        assert "retry" in report.lower()
+    else:
+        assert "invalid token" not in report.lower()
+        assert "permission" not in report.lower()
+
+
+def test_run_fails_when_user_authentication_cannot_be_confirmed(monkeypatch, capsys):
+    calls = []
+
+    def fake_probe(path, token):
+        assert token == "dummy-token"
+        calls.append(path)
+        assert path == "/user"
+        return 500, {}, "private response body"
+
+    monkeypatch.setattr(doctor, "_probe", fake_probe)
+    assert doctor.run(["o/r"], "dummy-token") == 1
+    output = capsys.readouterr().out
+    assert calls == ["/user"]
+    assert "HTTP 500" in output
+    assert "All good" not in output
+    assert "dummy-token" not in output
+    assert "private response body" not in output
 
 
 def test_missing_repo_access_is_distinguished_from_missing_permission(monkeypatch):

@@ -53,7 +53,14 @@ def check(repo: str, token: str) -> tuple[bool, list[str]]:
     if status == 401:
         return False, ["  The token is invalid, expired or revoked (401 on /user).",
                        "  Create a new one and update your secret."]
-    login = json.loads(body).get("login", "?") if status == 200 else "?"
+    if status != 200:
+        lines = [f"  HTTP {status} on /user; authentication could not be confirmed."]
+        if status == 429:
+            lines.append("  GitHub may be rate limiting requests; retry later.")
+        elif 500 <= status < 600:
+            lines.append("  GitHub may be temporarily unavailable; retry later.")
+        return False, lines
+    login = json.loads(body).get("login", "?")
     scopes = (headers.get("X-OAuth-Scopes") or "").strip()
     kind = "classic or OAuth" if scopes else "fine-grained (or scopeless)"
     out.append(f"  Token authenticates as: {login}")
