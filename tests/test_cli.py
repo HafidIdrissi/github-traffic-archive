@@ -32,6 +32,81 @@ def test_cli_version_flag(capsys):
     assert captured.out == f"traffic-archive {__version__}\n"
 
 
+@pytest.mark.parametrize("repo_flag,repo_value", [
+    ("--repos", "fictional/repo"),
+    ("--owner", "fictional"),
+])
+def test_file_output_is_rejected_before_api_calls(
+    tmp_path, monkeypatch, capsys, repo_flag, repo_value,
+):
+    output_file = tmp_path / "archive.txt"
+    sentinel = b"existing archive sentinel\n"
+    output_file.write_bytes(sentinel)
+    calls = []
+
+    def discover(*args):
+        calls.append("discovery")
+        return ["fictional/repo"]
+
+    def archive(*args):
+        calls.append("archive")
+        return {"views": 0, "clones": 0, "views_days": 0}
+
+    def traffic(*args, **kwargs):
+        calls.append("traffic")
+        return []
+
+    monkeypatch.setattr(api, "owned_repos", discover)
+    monkeypatch.setattr(cli, "archive_repo", archive)
+    for name in ("views", "clones", "referrers", "paths"):
+        monkeypatch.setattr(api, name, traffic)
+
+    code = cli.main([repo_flag, repo_value, "--token", "dummy-token", "--out", str(output_file)])
+
+    assert code != 0
+    assert calls == []
+    assert output_file.read_bytes() == sentinel
+    error = capsys.readouterr().err
+    assert "--out" in error
+    assert "file" in error.lower()
+
+
+@pytest.mark.parametrize("existing", [False, True])
+def test_directory_output_roots_remain_valid(tmp_path, fake_api, existing):
+    out = tmp_path / "archive"
+    if existing:
+        out.mkdir()
+
+    code = cli.main(["--repos", "fictional/repo", "--token", "dummy-token", "--out", str(out)])
+
+    assert code == 0
+    assert (out / "fictional__repo" / "views.json").exists()
+
+
+def test_check_ignores_file_output_and_propagates_doctor_result(tmp_path, monkeypatch):
+    output_file = tmp_path / "archive.txt"
+    sentinel = b"existing archive sentinel\n"
+    output_file.write_bytes(sentinel)
+    calls = []
+
+    def diagnose(repos, token):
+        calls.append((repos, token))
+        return 7
+
+    monkeypatch.setattr(cli.doctor, "run", diagnose)
+    monkeypatch.setattr(api, "owned_repos", lambda *args: pytest.fail("unexpected discovery"))
+    monkeypatch.setattr(cli, "archive_repo", lambda *args: pytest.fail("unexpected archive"))
+
+    code = cli.main([
+        "--repos", "fictional/repo", "--token", "dummy-token",
+        "--check", "--out", str(output_file),
+    ])
+
+    assert code == 7
+    assert calls == [(["fictional/repo"], "dummy-token")]
+    assert output_file.read_bytes() == sentinel
+
+
 def test_archive_writes_json_and_csv_per_metric(tmp_path, fake_api):
     cli.archive_repo("owner/repo", "tok", tmp_path, "2026-01-02")
     base = tmp_path / "owner__repo"

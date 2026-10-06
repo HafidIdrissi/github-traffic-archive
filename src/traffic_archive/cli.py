@@ -110,6 +110,11 @@ def main(argv: list[str] | None = None) -> int:
     if not args.owner and not args.repos:
         p.error("Nothing to archive. Pass --repos or --owner.")
 
+    out = Path(args.out)
+    if not args.check and out.is_file():
+        print(f"--out must be a directory, not a file: {out}", file=sys.stderr)
+        return 1
+
     if args.repos:
         repos = args.repos
     else:
@@ -121,7 +126,6 @@ def main(argv: list[str] | None = None) -> int:
     if args.check:
         return doctor.run(repos, args.token)
 
-    out = Path(args.out)
     today = dt.datetime.now(dt.timezone.utc).date().isoformat()
 
     failed: list[tuple[str, str]] = []
