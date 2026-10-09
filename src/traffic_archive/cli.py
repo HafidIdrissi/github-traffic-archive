@@ -103,6 +103,8 @@ def main(argv: list[str] | None = None) -> int:
                    help="Token with push access. Defaults to $GITHUB_TOKEN.")
     p.add_argument("--check", action="store_true",
                    help="Diagnose token access and exit without writing anything.")
+    p.add_argument("--quiet", action="store_true",
+                   help="Suppress non-error output.")
     args = p.parse_args(argv)
 
     if not args.token:
@@ -132,14 +134,16 @@ def main(argv: list[str] | None = None) -> int:
     for repo in repos:
         try:
             s = archive_repo(repo, args.token, out, today)
-            print(f"  {repo}: {s['views']} views / {s['clones']} clones "
-                  f"across {s['views_days']} archived days")
+            if not args.quiet:
+                print(f"  {repo}: {s['views']} views / {s['clones']} clones "
+                      f"across {s['views_days']} archived days")
         except api.TrafficError as err:
             # One unreadable repository must not abandon the rest.
             failed.append((repo, str(err)))
             print(f"  {repo}: skipped — {err}", file=sys.stderr)
 
-    print(f"\n{len(repos) - len(failed)}/{len(repos)} archived into {out}/")
+    if not args.quiet:
+        print(f"\n{len(repos) - len(failed)}/{len(repos)} archived into {out}/")
     if failed:
         print(f"{len(failed)} skipped; see messages above.", file=sys.stderr)
     return 1 if failed and len(failed) == len(repos) else 0
