@@ -66,10 +66,14 @@ def _request(path: str, token: str, retries: int = 3) -> Any:
 
 
 def views(repo: str, token: str, per: str = "day") -> list[dict[str, Any]]:
+    if per not in ("day", "week"):
+        raise ValueError("per must be 'day' or 'week'")
     return _request(f"/repos/{repo}/traffic/views?per={per}", token).get("views", [])
 
 
 def clones(repo: str, token: str, per: str = "day") -> list[dict[str, Any]]:
+    if per not in ("day", "week"):
+        raise ValueError("per must be 'day' or 'week'")
     return _request(f"/repos/{repo}/traffic/clones?per={per}", token).get("clones", [])
 
 
