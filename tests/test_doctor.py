@@ -1,3 +1,7 @@
+import io
+import urllib.error
+from email.message import Message
+
 import pytest
 
 from traffic_archive import doctor
@@ -124,15 +128,124 @@ def test_githubs_own_permission_header_is_surfaced(monkeypatch):
     assert any("requires" in l for l in lines)
 
 
-def test_classic_token_without_repo_scope_is_called_out(monkeypatch):
+@pytest.mark.parametrize("header_name", [
+    "X-OAuth-Scopes",
+    "x-oauth-scopes",
+    "x-OaUtH-sCoPeS",
+    None,
+])
+def test_scope_header_lookup_ignores_case(monkeypatch, header_name):
+    headers = {header_name: "repo, gist"} if header_name else {}
     responder(monkeypatch, {
-        "/user": (200, {"X-OAuth-Scopes": "gist, read:org"}, '{"login": "someone"}'),
+        "/user": (200, headers, '{"login": "someone"}'),
+        "/repos/o/r": (200, {}, "{}"),
+        "/traffic/views": (200, {}, '{"views": []}'),
+    })
+
+    ok, lines = doctor.check("o/r", "dummy-token")
+
+    expected = [
+        "  Token authenticates as: someone",
+        f"  Token type: {'classic or OAuth' if header_name else 'fine-grained (or scopeless)'}",
+    ]
+    if header_name:
+        expected.append("  Scopes: repo, gist")
+    expected.extend(["  Repository visible: o/r", "  Traffic readable: yes (0 days returned)"])
+    assert ok
+    assert lines == expected
+
+
+@pytest.mark.parametrize("header_name", [
+    "X-Accepted-GitHub-Permissions",
+    "x-accepted-github-permissions",
+    "x-AcCePtEd-GiThUb-PeRmIsSiOnS",
+    None,
+])
+def test_permission_header_lookup_ignores_case(monkeypatch, header_name):
+    headers = {header_name: "administration=read"} if header_name else {}
+    responder(monkeypatch, {
+        "/user": (200, {}, '{"login": "someone"}'),
+        "/repos/o/r": (200, {}, "{}"),
+        "/traffic/views": (403, headers, "{}"),
+    })
+
+    ok, lines = doctor.check("o/r", "dummy-token")
+
+    assert not ok
+    assert lines[:4] == [
+        "  Token authenticates as: someone",
+        "  Token type: fine-grained (or scopeless)",
+        "  Repository visible: o/r",
+        "  Traffic readable: no (403)",
+    ]
+    if header_name:
+        assert lines[4:] == [
+            "  GitHub says it requires: administration=read",
+            "  -> Grant exactly that on the token, then re-run this check.",
+        ]
+    else:
+        assert any("GitHub returned no" in line for line in lines)
+        assert not any("GitHub says it requires:" in line for line in lines)
+
+
+def test_header_lookup_from_success_and_http_error_responses(monkeypatch):
+    class FakeResponse(io.BytesIO):
+        def __init__(self, status, headers, body):
+            super().__init__(body)
+            self.status = status
+            self.headers = headers
+
+    calls = []
+
+    def fake_urlopen(request, timeout):
+        assert timeout == 30
+        path = request.full_url.removeprefix(doctor.API)
+        calls.append(path)
+        if path == "/user":
+            headers = Message()
+            headers["x-oauth-scopes"] = "repo, gist"
+            return FakeResponse(200, headers, b'{"login": "someone"}')
+        if path == "/repos/o/r":
+            return FakeResponse(200, Message(), b"{}")
+        if path == "/repos/o/r/traffic/views?per=day":
+            headers = Message()
+            headers["x-accepted-github-permissions"] = "administration=read"
+            raise urllib.error.HTTPError(request.full_url, 403, "Forbidden", headers, io.BytesIO(b"{}"))
+        raise AssertionError(f"unexpected request: {path}")
+
+    monkeypatch.setattr(doctor.urllib.request, "urlopen", fake_urlopen)
+    ok, lines = doctor.check("o/r", "dummy-token")
+
+    assert not ok
+    assert calls == ["/user", "/repos/o/r", "/repos/o/r/traffic/views?per=day"]
+    assert "  Token type: classic or OAuth" in lines
+    assert "  Scopes: repo, gist" in lines
+    assert "  GitHub says it requires: administration=read" in lines
+
+
+@pytest.mark.parametrize("header_name", [
+    "X-OAuth-Scopes",
+    "x-oauth-scopes",
+    "x-OaUtH-sCoPeS",
+])
+def test_classic_token_without_repo_scope_is_called_out(monkeypatch, header_name):
+    responder(monkeypatch, {
+        "/user": (200, {header_name: "gist, read:org"}, '{"login": "someone"}'),
         "/repos/o/r": (200, {}, "{}"),
         "/traffic/views": (403, {}, "{}"),
     })
     ok, lines = doctor.check("o/r", "tok")
     assert not ok
-    assert any("`repo` scope" in l for l in lines)
+    assert lines == [
+        "  Token authenticates as: someone",
+        "  Token type: classic or OAuth",
+        "  Scopes: gist, read:org",
+        "  -> A classic token needs the `repo` scope for traffic. Yours lacks it.",
+        "  Repository visible: o/r",
+        "  Traffic readable: no (403)",
+        "  -> Classic token missing the traffic permission.",
+        "     Tick the top-level `repo` scope and regenerate.",
+    ]
 
 
 def test_classic_403_names_the_scope_not_the_fine_grained_advice(monkeypatch):
