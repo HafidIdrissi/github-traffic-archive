@@ -2,10 +2,66 @@
 
 import io
 import urllib.error
+from unittest.mock import Mock
 
 import pytest
 
 from traffic_archive import api
+
+
+@pytest.mark.parametrize(("helper", "metric"), [(api.views, "views"), (api.clones, "clones")])
+@pytest.mark.parametrize(
+    ("per", "expected_per"),
+    [(None, "day"), ("day", "day"), ("week", "week")],
+    ids=["omitted", "day", "week"],
+)
+def test_traffic_aggregation_requests_and_extracts_data(
+    monkeypatch, helper, metric, per, expected_per
+):
+    records = [{"timestamp": "2026-10-10T00:00:00Z", "count": 3, "uniques": 2}]
+    request = Mock(return_value={metric: records})
+    monkeypatch.setattr(api, "_request", request)
+
+    if per is None:
+        result = helper("example/project", "dummy-token")
+    else:
+        result = helper("example/project", "dummy-token", per=per)
+
+    assert result == records
+    request.assert_called_once_with(
+        f"/repos/example/project/traffic/{metric}?per={expected_per}", "dummy-token"
+    )
+
+
+@pytest.mark.parametrize("helper", [api.views, api.clones])
+@pytest.mark.parametrize("per", ["month", "", "Day", "week&extra=1"])
+def test_traffic_aggregation_rejects_unsupported_values_before_request(
+    monkeypatch, helper, per
+):
+    request = Mock()
+    monkeypatch.setattr(api, "_request", request)
+
+    with pytest.raises(ValueError):
+        helper("example/project", "dummy-token", per=per)
+
+    request.assert_not_called()
+
+
+@pytest.mark.parametrize("helper", [api.views, api.clones])
+def test_traffic_aggregation_preserves_missing_data_as_empty_list(monkeypatch, helper):
+    request = Mock(return_value={})
+    monkeypatch.setattr(api, "_request", request)
+
+    assert helper("example/project", "dummy-token") == []
+
+
+@pytest.mark.parametrize("helper", [api.views, api.clones])
+def test_traffic_aggregation_preserves_transport_error(monkeypatch, helper):
+    request = Mock(side_effect=api.TrafficError("transport failed"))
+    monkeypatch.setattr(api, "_request", request)
+
+    with pytest.raises(api.TrafficError, match="transport failed"):
+        helper("example/project", "dummy-token")
 
 
 @pytest.fixture
