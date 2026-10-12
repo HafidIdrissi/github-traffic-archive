@@ -39,6 +39,14 @@ def _probe(path: str, token: str) -> tuple[int, dict[str, str], str]:
         return 0, {}, str(e)
 
 
+def _header(headers: dict[str, str], name: str) -> str:
+    target = name.lower()
+    for key, value in headers.items():
+        if key.lower() == target:
+            return value
+    return ""
+
+
 def check(repo: str, token: str) -> tuple[bool, list[str]]:
     """Diagnose access to one repository. Returns (ok, lines to print)."""
     out: list[str] = []
@@ -61,7 +69,7 @@ def check(repo: str, token: str) -> tuple[bool, list[str]]:
             lines.append("  GitHub may be temporarily unavailable; retry later.")
         return False, lines
     login = json.loads(body).get("login", "?")
-    scopes = (headers.get("X-OAuth-Scopes") or "").strip()
+    scopes = (_header(headers, "X-OAuth-Scopes") or "").strip()
     kind = "classic or OAuth" if scopes else "fine-grained (or scopeless)"
     out.append(f"  Token authenticates as: {login}")
     out.append(f"  Token type: {kind}")
@@ -90,7 +98,7 @@ def check(repo: str, token: str) -> tuple[bool, list[str]]:
         return True, out
 
     out.append(f"  Traffic readable: no ({status})")
-    wanted = headers.get("X-Accepted-GitHub-Permissions")
+    wanted = _header(headers, "X-Accepted-GitHub-Permissions")
     if wanted:
         # GitHub named the requirement. Trust this over any documentation.
         out.append(f"  GitHub says it requires: {wanted}")
