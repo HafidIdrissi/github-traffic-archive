@@ -4,7 +4,7 @@ from email.message import Message
 
 import pytest
 
-from traffic_archive import doctor
+from traffic_archive import api, doctor
 
 
 def responder(monkeypatch, mapping):
@@ -295,3 +295,48 @@ def test_run_returns_nonzero_when_any_repo_fails(monkeypatch, capsys):
                         lambda repo, token: (repo != "o/bad", ["  line"]))
     assert doctor.run(["o/good", "o/bad"], "tok") == 1
     assert doctor.run(["o/good"], "tok") == 0
+
+
+SENTINEL_TOKEN = "synthetic-sentinel-token-not-real"
+
+
+class _FakeResponse(io.BytesIO):
+    """In-memory success response that records whether it was closed."""
+
+    status = 200
+    headers = {}
+
+
+def _capture_request(monkeypatch):
+    """Patch urlopen (not doctor._probe) so the real Request gets built."""
+    captured = []
+    response = _FakeResponse(b"{}")
+
+    def fake_urlopen(req, *args, **kwargs):
+        captured.append(req)
+        return response
+
+    monkeypatch.setattr(doctor.urllib.request, "urlopen", fake_urlopen)
+    return captured, response
+
+
+def test_probe_sends_documented_headers(monkeypatch):
+    captured, _ = _capture_request(monkeypatch)
+
+    doctor._probe("/user", SENTINEL_TOKEN)
+
+    assert len(captured) == 1
+    # urllib normalises header names, so compare case-insensitively.
+    headers = {name.lower(): value for name, value in captured[0].header_items()}
+    assert headers["accept"] == "application/vnd.github+json"
+    assert headers["x-github-api-version"] == "2022-11-28"
+    assert headers["user-agent"] == api.UA
+    assert headers["authorization"] == "Bearer " + SENTINEL_TOKEN
+
+
+def test_probe_closes_response(monkeypatch):
+    _, response = _capture_request(monkeypatch)
+
+    doctor._probe("/user", SENTINEL_TOKEN)
+
+    assert response.closed
