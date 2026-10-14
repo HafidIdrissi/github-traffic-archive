@@ -16,10 +16,29 @@ behaviour is unclear, ask there before writing code.
 git clone https://github.com/YOUR-USERNAME/github-traffic-archive.git
 cd github-traffic-archive
 git remote add upstream https://github.com/HafidIdrissi/github-traffic-archive.git
+python -m venv .venv
+. .venv/bin/activate
 python -m pip install --upgrade pytest
 python -m pip install --no-deps -e .
 python -m pytest
 ```
+
+An editable install creates `traffic-archive` in the active virtual
+environment. Pytest can find `src` because `pyproject.toml` adds it to the
+Python path, but running pytest alone does not install this console entry
+point. With the environment still active, leave the checkout and check the
+command and import:
+
+```bash
+cd ..
+traffic-archive --help
+traffic-archive --version
+python -c "import traffic_archive; print(traffic_archive.__file__)"
+```
+
+The printed path should point into the checkout's `src/traffic_archive`
+directory. Windows-specific environment setup is tracked in
+[#43](https://github.com/HafidIdrissi/github-traffic-archive/issues/43).
 
 The package uses the standard library only. Please keep it that way: a
 scheduled workflow that breaks because of a transitive release is worse than a
