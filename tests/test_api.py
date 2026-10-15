@@ -182,3 +182,47 @@ def test_request_keeps_rate_limit_retries_separate_from_permission_errors(monkey
     assert api._request("/repos/owner/repo/traffic/views", "token") == {"views": []}
     assert attempts == 2
 
+
+SENTINEL_TOKEN = "synthetic-sentinel-token-not-real"
+
+
+class _FakeResponse(io.BytesIO):
+    """In-memory success response that records whether it was closed."""
+
+    status = 200
+    headers = {}
+
+
+def _capture_request(monkeypatch):
+    """Patch urlopen (not api._request) so the real Request gets built."""
+    captured = []
+    response = _FakeResponse(b"{}")
+
+    def fake_urlopen(req, *args, **kwargs):
+        captured.append(req)
+        return response
+
+    monkeypatch.setattr(api.urllib.request, "urlopen", fake_urlopen)
+    return captured, response
+
+
+def test_request_sends_documented_headers(monkeypatch):
+    captured, _ = _capture_request(monkeypatch)
+
+    api._request("/repos/owner/repo/traffic/views", SENTINEL_TOKEN)
+
+    assert len(captured) == 1
+    # urllib normalises header names, so compare case-insensitively.
+    headers = {name.lower(): value for name, value in captured[0].header_items()}
+    assert headers["accept"] == "application/vnd.github+json"
+    assert headers["x-github-api-version"] == "2022-11-28"
+    assert headers["user-agent"] == api.UA
+    assert headers["authorization"] == "Bearer " + SENTINEL_TOKEN
+
+
+def test_request_closes_response(monkeypatch):
+    _, response = _capture_request(monkeypatch)
+
+    api._request("/repos/owner/repo/traffic/views", SENTINEL_TOKEN)
+
+    assert response.closed
