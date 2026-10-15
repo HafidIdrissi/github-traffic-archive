@@ -223,6 +223,8 @@ These endpoints return a top ten for the whole trailing window, not a per-day se
 
 `uniques` is summed per day because that is what GitHub reports. It is **not** a distinct-person count across the full archive: one person visiting on three different days can contribute three daily uniques. Treat it as daily reach, not audience size.
 
+For a fictional worked comparison with GitHub Insights, see [Interpreting archived totals](docs/INTERPRETING_TOTALS.md).
+
 ## What the attestation proves
 
 The archive is evidence with verifiable provenance, not an independent proof of traffic truth.
