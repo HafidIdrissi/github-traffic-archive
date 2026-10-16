@@ -31,7 +31,11 @@ def test_reports_success_when_traffic_is_readable(monkeypatch):
     responses = {
         "/user": OK_USER,
         "/repos/o/r": (200, {}, "{}"),
-        "/repos/o/r/traffic/views?per=day": (200, {}, '{"views": [{}, {}]}'),
+        "/repos/o/r/traffic/views?per=day": (
+            200, {},
+            '{"views": [{"timestamp": "2026-01-01T00:00:00Z", "count": 2, "uniques": 1}, '
+            '{"timestamp": "2026-01-02T00:00:00Z", "count": 3, "uniques": 2}]}',
+        ),
     }
     calls = []
 
@@ -296,6 +300,156 @@ def test_run_returns_nonzero_when_any_repo_fails(monkeypatch, capsys):
     assert doctor.run(["o/good", "o/bad"], "tok") == 1
     assert doctor.run(["o/good"], "tok") == 0
 
+USER_INVALID_RESPONSES = [
+    pytest.param("RESPONSE_BODY_SENTINEL", "expected a JSON object", id="invalid-json"),
+    pytest.param("null", "expected a JSON object", id="null-root"),
+    pytest.param("[]", "expected a JSON object", id="list-root"),
+    pytest.param("{}", "expected a non-empty login string", id="missing-login"),
+    pytest.param('{"login": ""}', "expected a non-empty login string", id="empty-login"),
+    pytest.param('{"login": 7}', "expected a non-empty login string", id="wrong-login-type"),
+]
+
+
+@pytest.mark.parametrize(("body", "expected"), USER_INVALID_RESPONSES)
+def test_invalid_successful_user_response_fails_without_probing_further(
+    monkeypatch, body, expected
+):
+    if body == "{}":
+        body = '{"body_sentinel": "RESPONSE_BODY_SENTINEL"}'
+    elif body.startswith("{"):
+        body = f'{body[:-1]}, "body_sentinel": "RESPONSE_BODY_SENTINEL"}}'
+    calls = []
+
+    def fake_probe(path, token):
+        assert token == "dummy-secret-token"
+        calls.append(path)
+        assert path == "/user"
+        return 200, {}, body
+
+    monkeypatch.setattr(doctor, "_probe", fake_probe)
+    ok, lines = doctor.check("o/r", "dummy-secret-token")
+    report = "\n".join(lines)
+
+    assert not ok
+    assert calls == ["/user"]
+    assert expected in report
+    assert "dummy-secret-token" not in report
+    assert "RESPONSE_BODY_SENTINEL" not in report
+    assert "Traceback" not in report
+
+
+TRAFFIC_URL = "/repos/o/r/traffic/views?per=day"
+TRAFFIC_ERROR_PREFIX = "Invalid response from /repos/o/r/traffic/views:"
+
+TRAFFIC_INVALID_RESPONSES = [
+    pytest.param("RESPONSE_BODY_SENTINEL", "expected a JSON object", id="invalid-json"),
+    pytest.param("null", "expected a JSON object", id="null-root"),
+    pytest.param("[]", "expected a JSON object", id="list-root"),
+    pytest.param("{}", "expected a views list", id="missing-views"),
+    pytest.param('{"views": null}', "expected a views list", id="null-views"),
+    pytest.param('{"views": "bad"}', "expected a views list", id="non-list-views"),
+    pytest.param('{"views": [null]}', "expected each views entry", id="null-entry"),
+    pytest.param('{"views": [1]}', "expected each views entry", id="non-object-entry"),
+    pytest.param('{"views": [{}]}', "expected each views entry", id="missing-entry-fields"),
+    pytest.param(
+        '{"views": [{"timestamp": "", "count": 1, "uniques": 1}]}',
+        "expected each views entry", id="empty-timestamp",
+    ),
+    pytest.param(
+        '{"views": [{"timestamp": 1, "count": 1, "uniques": 1}]}',
+        "expected each views entry", id="wrong-timestamp-type",
+    ),
+    pytest.param(
+        '{"views": [{"timestamp": "2026-01-01T00:00:00Z", "count": true, "uniques": 1}]}',
+        "expected each views entry", id="boolean-count",
+    ),
+    pytest.param(
+        '{"views": [{"timestamp": "2026-01-01T00:00:00Z", "count": "1", "uniques": 1}]}',
+        "expected each views entry", id="string-count",
+    ),
+    pytest.param(
+        '{"views": [{"timestamp": "2026-01-01T00:00:00Z", "count": 1.5, "uniques": 1}]}',
+        "expected each views entry", id="float-count",
+    ),
+    pytest.param(
+        '{"views": [{"timestamp": "2026-01-01T00:00:00Z", "count": -1, "uniques": 1}]}',
+        "expected each views entry", id="negative-count",
+    ),
+    pytest.param(
+        '{"views": [{"timestamp": "2026-01-01T00:00:00Z", "count": 1, "uniques": false}]}',
+        "expected each views entry", id="boolean-uniques",
+    ),
+    pytest.param(
+        '{"views": [{"timestamp": "2026-01-01T00:00:00Z", "count": 1, "uniques": "1"}]}',
+        "expected each views entry", id="string-uniques",
+    ),
+    pytest.param(
+        '{"views": [{"timestamp": "2026-01-01T00:00:00Z", "count": 1, "uniques": -1}]}',
+        "expected each views entry", id="negative-uniques",
+    ),
+]
+
+
+@pytest.mark.parametrize(("body", "expected"), TRAFFIC_INVALID_RESPONSES)
+def test_invalid_successful_traffic_response_fails_without_disclosure(
+    monkeypatch, body, expected
+):
+    if body == "{}":
+        body = '{"body_sentinel": "RESPONSE_BODY_SENTINEL"}'
+    elif body.startswith("{"):
+        body = f'{body[:-1]}, "body_sentinel": "RESPONSE_BODY_SENTINEL"}}'
+    calls = []
+    responses = {
+        "/user": OK_USER,
+        "/repos/o/r": (200, {}, "{}"),
+        TRAFFIC_URL: (200, {}, body),
+    }
+
+    def fake_probe(path, token):
+        assert token == "dummy-secret-token"
+        calls.append(path)
+        return responses[path]
+
+    monkeypatch.setattr(doctor, "_probe", fake_probe)
+    ok, lines = doctor.check("o/r", "dummy-secret-token")
+    report = "\n".join(lines)
+
+    assert not ok
+    assert calls == ["/user", "/repos/o/r", TRAFFIC_URL]
+    assert TRAFFIC_ERROR_PREFIX in report
+    assert expected in report
+    assert "dummy-secret-token" not in report
+    assert "RESPONSE_BODY_SENTINEL" not in report
+    assert "Traceback" not in report
+
+
+def test_successful_traffic_accepts_valid_non_empty_views(monkeypatch):
+    responder(monkeypatch, {
+        "/user": OK_USER,
+        "/repos/o/r": (200, {}, "{}"),
+        TRAFFIC_URL: (
+            200, {},
+            '{"views": [{"timestamp": "2026-01-01T00:00:00Z", "count": 12, "uniques": 7}]}',
+        ),
+    })
+
+    ok, lines = doctor.check("o/r", "dummy-token")
+
+    assert ok
+    assert "  Traffic readable: yes (1 days returned)" in lines
+
+
+def test_successful_traffic_accepts_explicit_empty_views(monkeypatch):
+    responder(monkeypatch, {
+        "/user": OK_USER,
+        "/repos/o/r": (200, {}, "{}"),
+        TRAFFIC_URL: (200, {}, '{"views": []}'),
+    })
+
+    ok, lines = doctor.check("o/r", "dummy-token")
+
+    assert ok
+    assert "  Traffic readable: yes (0 days returned)" in lines
 
 SENTINEL_TOKEN = "synthetic-sentinel-token-not-real"
 

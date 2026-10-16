@@ -47,6 +47,27 @@ def _header(headers: dict[str, str], name: str) -> str:
     return ""
 
 
+def _json_object(body: str) -> dict | None:
+    try:
+        value = json.loads(body)
+    except json.JSONDecodeError:
+        return None
+    return value if isinstance(value, dict) else None
+
+
+def _valid_views(views: list) -> bool:
+    for view in views:
+        if not isinstance(view, dict):
+            return False
+        if not isinstance(view.get("timestamp"), str) or not view["timestamp"]:
+            return False
+        for key in ("count", "uniques"):
+            value = view.get(key)
+            if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+                return False
+    return True
+
+
 def check(repo: str, token: str) -> tuple[bool, list[str]]:
     """Diagnose access to one repository. Returns (ok, lines to print)."""
     out: list[str] = []
@@ -68,7 +89,14 @@ def check(repo: str, token: str) -> tuple[bool, list[str]]:
         elif 500 <= status < 600:
             lines.append("  GitHub may be temporarily unavailable; retry later.")
         return False, lines
-    login = json.loads(body).get("login", "?")
+    user = _json_object(body)
+    if user is None:
+        return False, ["  Invalid response from /user: expected a JSON object."]
+    login = user.get("login")
+    if not isinstance(login, str) or not login:
+        return False, [
+            "  Invalid response from /user: expected a non-empty login string."
+        ]
     scopes = (_header(headers, "X-OAuth-Scopes") or "").strip()
     kind = "classic or OAuth" if scopes else "fine-grained (or scopeless)"
     out.append(f"  Token authenticates as: {login}")
@@ -93,8 +121,26 @@ def check(repo: str, token: str) -> tuple[bool, list[str]]:
     # 3. The endpoint that actually matters.
     status, headers, body = _probe(f"/repos/{repo}/traffic/views?per=day", token)
     if status == 200:
-        n = len(json.loads(body).get("views", []))
-        out.append(f"  Traffic readable: yes ({n} days returned)")
+        traffic = _json_object(body)
+        if traffic is None:
+            out.append(
+                f"  Invalid response from /repos/{repo}/traffic/views: expected a JSON object."
+            )
+            return False, out
+        views = traffic.get("views")
+        if not isinstance(views, list):
+            out.append(
+                f"  Invalid response from /repos/{repo}/traffic/views: expected a views list."
+            )
+            return False, out
+        if not _valid_views(views):
+            out.append(
+                f"  Invalid response from /repos/{repo}/traffic/views: "
+                "expected each views entry to contain a non-empty timestamp and "
+                "non-negative integer count and uniques."
+            )
+            return False, out
+        out.append(f"  Traffic readable: yes ({len(views)} days returned)")
         return True, out
 
     out.append(f"  Traffic readable: no ({status})")
