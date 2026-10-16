@@ -253,3 +253,91 @@ def test_cli_rejects_invalid_repo_and_exits(capsys):
     captured = capsys.readouterr()
     assert "Expected 'owner/name'" in captured.err
 
+
+
+
+def test_quiet_flag_suppresses_stdout_on_success(tmp_path, fake_api, capsys):
+    code = cli.main([
+        "--repos", "fictional/repo",
+        "--token", "dummy-token",
+        "--out", str(tmp_path),
+        "--quiet",
+    ])
+    assert code == 0
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == ""
+
+
+def test_quiet_flag_preserves_stderr_on_partial_failure(tmp_path, monkeypatch, capsys):
+    state = {
+        "views": [{"timestamp": "2026-01-02T00:00:00Z", "count": 5, "uniques": 3}],
+        "clones": [{"timestamp": "2026-01-02T00:00:00Z", "count": 2, "uniques": 1}],
+        "referrers": [{"referrer": "google.com", "count": 4, "uniques": 2}],
+        "paths": [{"path": "/x", "title": "x", "count": 4, "uniques": 2}],
+    }
+
+    def fail_views(repo, token, per="day"):
+        if repo == "fictional/bad":
+            raise api.TrafficError("403 Forbidden")
+        return state["views"]
+
+    monkeypatch.setattr(api, "views", fail_views)
+    monkeypatch.setattr(api, "clones", lambda r, t, per="day": state["clones"])
+    monkeypatch.setattr(api, "referrers", lambda r, t: state["referrers"])
+    monkeypatch.setattr(api, "paths", lambda r, t: state["paths"])
+
+    code = cli.main([
+        "--repos", "fictional/good,fictional/bad",
+        "--token", "dummy-token",
+        "--out", str(tmp_path),
+        "--quiet",
+    ])
+    assert code == 0
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "fictional/bad: skipped — 403 Forbidden" in captured.err
+    assert "1 skipped; see messages above." in captured.err
+
+
+def test_quiet_flag_preserves_stderr_on_all_failures_and_exits_nonzero(tmp_path, monkeypatch, capsys):
+    def fail_views(repo, token, per="day"):
+        raise api.TrafficError("404 Not Found")
+
+    monkeypatch.setattr(api, "views", fail_views)
+
+    code = cli.main([
+        "--repos", "fictional/bad1,fictional/bad2",
+        "--token", "dummy-token",
+        "--out", str(tmp_path),
+        "--quiet",
+    ])
+    assert code != 0
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "fictional/bad1: skipped — 404 Not Found" in captured.err
+    assert "fictional/bad2: skipped — 404 Not Found" in captured.err
+    assert "2 skipped; see messages above." in captured.err
+
+
+def test_quiet_flag_with_check_leaves_diagnostics_unchanged(monkeypatch, capsys):
+    calls = []
+
+    def diagnose(repos, token):
+        calls.append((repos, token))
+        print("Checking token access to the traffic API")
+        print("fictional/repo\n  Traffic readable: yes (14 days returned)\nAll good — archiving will work with this token.")
+        return 0
+
+    monkeypatch.setattr(cli.doctor, "run", diagnose)
+
+    code = cli.main([
+        "--repos", "fictional/repo",
+        "--token", "dummy-token",
+        "--check",
+        "--quiet",
+    ])
+    assert code == 0
+    assert calls == [([ "fictional/repo" ], "dummy-token")]
+    captured = capsys.readouterr()
+    assert "Checking token access" in captured.out

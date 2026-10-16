@@ -203,6 +203,7 @@ traffic-archive --repos owner/repo,owner/other
 
 # or every non-fork repository you own
 traffic-archive --owner your-username --out traffic
+traffic-archive --owner your-username --quiet
 ```
 
 PowerShell uses `$env:GITHUB_TOKEN = "github_pat_..."`; the remaining commands are unchanged.
