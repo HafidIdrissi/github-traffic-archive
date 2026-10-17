@@ -65,24 +65,48 @@ def _request(path: str, token: str, retries: int = 3) -> Any:
     raise TrafficError(f"{path} failed after {retries} attempts: {last}")
 
 
+def _traffic_rows(
+    path: str, token: str, metric: str | None = None
+) -> list[dict[str, Any]]:
+    """Decode and validate the response container for a traffic endpoint."""
+    try:
+        response = _request(path, token)
+    except json.JSONDecodeError:
+        raise TrafficError(f"{path} returned invalid JSON.") from None
+
+    if metric is None:
+        if not isinstance(response, list):
+            raise TrafficError(f"{path} returned an invalid response: expected a JSON list.")
+        return response
+
+    if not isinstance(response, dict):
+        raise TrafficError(f"{path} returned an invalid response: expected a JSON object.")
+    rows = response.get(metric)
+    if not isinstance(rows, list):
+        raise TrafficError(
+            f"{path} returned an invalid response: expected an explicit '{metric}' list."
+        )
+    return rows
+
+
 def views(repo: str, token: str, per: str = "day") -> list[dict[str, Any]]:
     if per not in ("day", "week"):
         raise ValueError("per must be 'day' or 'week'")
-    return _request(f"/repos/{repo}/traffic/views?per={per}", token).get("views", [])
+    return _traffic_rows(f"/repos/{repo}/traffic/views?per={per}", token, "views")
 
 
 def clones(repo: str, token: str, per: str = "day") -> list[dict[str, Any]]:
     if per not in ("day", "week"):
         raise ValueError("per must be 'day' or 'week'")
-    return _request(f"/repos/{repo}/traffic/clones?per={per}", token).get("clones", [])
+    return _traffic_rows(f"/repos/{repo}/traffic/clones?per={per}", token, "clones")
 
 
 def referrers(repo: str, token: str) -> list[dict[str, Any]]:
-    return _request(f"/repos/{repo}/traffic/popular/referrers", token)
+    return _traffic_rows(f"/repos/{repo}/traffic/popular/referrers", token)
 
 
 def paths(repo: str, token: str) -> list[dict[str, Any]]:
-    return _request(f"/repos/{repo}/traffic/popular/paths", token)
+    return _traffic_rows(f"/repos/{repo}/traffic/popular/paths", token)
 
 
 def owned_repos(owner: str, token: str, include_forks: bool = False) -> list[str]:
