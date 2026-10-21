@@ -1,9 +1,15 @@
 import argparse
+import csv
 import json
 
 import pytest
 
 from traffic_archive import __version__, api, cli
+
+# 2**53 is the first integer a double cannot hold exactly, so counts above it
+# expose any arithmetic that detours through floating point.
+LARGE = 2**53 + 1
+LARGER = 2**53 + 3
 
 
 @pytest.fixture
@@ -252,4 +258,62 @@ def test_cli_rejects_invalid_repo_and_exits(capsys):
     assert exc_info.value.code != 0
     captured = capsys.readouterr()
     assert "Expected 'owner/name'" in captured.err
+
+
+def test_archive_writes_large_counts_exactly_in_json_and_csv(tmp_path, fake_api):
+    """The archived file must hold GitHub's digits, not a rounded double."""
+    fake_api["views"] = [
+        {"timestamp": "2026-01-01T00:00:00Z", "count": LARGE, "uniques": 0},
+        {"timestamp": "2026-01-02T00:00:00Z", "count": 0, "uniques": LARGER},
+    ]
+
+    summary = cli.archive_repo("owner/repo", "tok", tmp_path, "2026-01-02")
+    base = tmp_path / "owner__repo"
+
+    raw_json = (base / "views.json").read_text(encoding="utf-8")
+    assert "9007199254740993" in raw_json
+    assert "9007199254740992" not in raw_json, "a count was rounded to a double"
+    stored = json.loads(raw_json)
+    assert [s["count"] for s in stored] == [LARGE, 0]
+    for entry in stored:
+        assert isinstance(entry["count"], int) and not isinstance(entry["count"], bool)
+
+    with (base / "views.csv").open(newline="", encoding="utf-8") as fh:
+        rows = list(csv.reader(fh))
+    assert rows[0] == ["date", "count", "uniques"]
+    assert rows[1] == ["2026-01-01", "9007199254740993", "0"]
+    assert rows[2] == ["2026-01-02", "0", "9007199254740995"]
+
+    assert isinstance(summary["views"], int)
+    assert summary["views"] == LARGE
+    assert summary["views_days"] == 2
+
+
+def test_second_run_keeps_a_stored_large_count_exact(tmp_path, fake_api):
+    """Re-reading the archive must not round the count it already stored."""
+    base = tmp_path / "owner__repo"
+    base.mkdir(parents=True)
+    (base / "views.json").write_text(json.dumps(
+        [{"timestamp": "2026-01-01T00:00:00Z", "count": LARGE, "uniques": 0}]),
+        encoding="utf-8")
+
+    cli.archive_repo("owner/repo", "tok", tmp_path, "2026-01-02")
+
+    stored = json.loads((base / "views.json").read_text(encoding="utf-8"))
+    by_day = {s["timestamp"]: s for s in stored}
+    kept = by_day["2026-01-01T00:00:00Z"]
+    assert isinstance(kept["count"], int)
+    assert kept["count"] == LARGE
+
+
+def test_cli_prints_the_exact_large_total(tmp_path, fake_api, capsys):
+    """The number the run reports is the number GitHub reported."""
+    fake_api["views"] = [
+        {"timestamp": "2026-01-01T00:00:00Z", "count": LARGE, "uniques": 0},
+    ]
+
+    code = cli.main(["--repos", "owner/repo", "--token", "tok", "--out", str(tmp_path)])
+
+    assert code == 0
+    assert "9007199254740993 views" in capsys.readouterr().out
 

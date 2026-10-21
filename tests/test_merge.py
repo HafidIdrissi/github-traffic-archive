@@ -1,3 +1,6 @@
+import csv
+import io
+
 import pytest
 
 from traffic_archive.merge import (
@@ -7,6 +10,23 @@ from traffic_archive.merge import (
 
 def day(ts, count, uniques):
     return {"timestamp": ts, "count": count, "uniques": uniques}
+
+
+# 2**53 is the first integer a double cannot hold exactly, so a count above it
+# is the sharpest probe for arithmetic that detours through floating point.
+LARGE = 2**53 + 1
+LARGER = 2**53 + 3
+
+
+def assert_exact_int(value, expected):
+    """A count no float can hold must arrive as that same integer.
+
+    Equality alone would not notice a float that happens to be exactly
+    representable (`9007199254740994.0 == 9007199254740994` is true), so the
+    type is checked too: an archive of integers stays integer arithmetic.
+    """
+    assert isinstance(value, int) and not isinstance(value, bool)
+    assert value == expected
 
 
 def test_fresh_value_wins_for_a_repeated_day():
@@ -74,3 +94,66 @@ def test_csv_has_a_header_and_iso_dates():
     rows = to_csv_rows([day("2026-01-01T00:00:00Z", 3, 2)])
     assert rows[0] == ["date", "count", "uniques"]
     assert rows[1] == ["2026-01-01", "3", "2"]
+
+
+def test_csv_rows_keep_counts_above_two_to_the_fifty_third_exact():
+    """The archived number must be the number GitHub reported, digit for digit."""
+    rows = to_csv_rows([day("2026-01-01T00:00:00Z", LARGE, LARGER)])
+    assert rows[1] == ["2026-01-01", "9007199254740993", "9007199254740995"]
+
+
+def test_csv_rows_write_a_zero_count_as_zero():
+    """A day with no traffic is a real value, not a missing one."""
+    rows = to_csv_rows([day("2026-01-01T00:00:00Z", 0, 0)])
+    assert rows[1] == ["2026-01-01", "0", "0"]
+
+
+def test_csv_round_trip_preserves_large_counts_and_zero_days():
+    """Round-tripping the file must not change a single digit."""
+    series = [
+        day("2026-01-01T00:00:00Z", LARGE, 0),
+        day("2026-01-02T00:00:00Z", 0, LARGER),
+    ]
+    buffer = io.StringIO()
+    csv.writer(buffer).writerows(to_csv_rows(series))
+    text = buffer.getvalue()
+
+    assert "e+" not in text.lower(), "a count was written in exponent form"
+    rows = list(csv.reader(io.StringIO(text)))
+    assert rows[0] == ["date", "count", "uniques"]
+    assert rows[1] == ["2026-01-01", "9007199254740993", "0"]
+    assert rows[2] == ["2026-01-02", "0", "9007199254740995"]
+    assert_exact_int(int(rows[1][1]), LARGE)
+    assert_exact_int(int(rows[2][2]), LARGER)
+
+
+def test_totals_sum_large_counts_without_float_rounding():
+    """A total above 2**53 is still an integer total, not a rounded double."""
+    series = [
+        day("2026-01-01T00:00:00Z", LARGE, 0),
+        day("2026-01-02T00:00:00Z", 0, LARGER),
+        day("2026-01-03T00:00:00Z", 2, 2),
+    ]
+    t = totals(series)
+
+    assert t["days"] == 3
+    assert_exact_int(t["count"], LARGER)
+    assert_exact_int(t["uniques"], LARGER + 2)
+    # No double holds these exactly, so a float round trip would change them.
+    assert float(t["count"]) != t["count"]
+    assert float(t["uniques"]) != t["uniques"]
+
+
+def test_merge_keeps_large_counts_exact_and_prefers_the_fresh_day():
+    """Storing and re-reading a huge count must not shift it by a single unit."""
+    stored = [day("2026-01-01T00:00:00Z", LARGE, 0)]
+    incoming = [
+        day("2026-01-01T00:00:00Z", LARGER, 0),
+        day("2026-01-02T00:00:00Z", 0, LARGE),
+    ]
+    merged = merge_timeseries(stored, incoming)
+
+    assert_exact_int(merged[0]["count"], LARGER)
+    assert_exact_int(merged[1]["count"], 0)
+    assert_exact_int(merged[1]["uniques"], LARGE)
+    assert_exact_int(totals(merged)["count"], LARGER)
