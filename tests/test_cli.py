@@ -115,6 +115,75 @@ def test_archive_writes_json_and_csv_per_metric(tmp_path, fake_api):
         assert (base / name).exists(), name
 
 
+def test_archive_saves_each_collected_response(tmp_path, fake_api):
+    """Each response from fake_api belongs in its own metric's JSON file."""
+    today = "2026-01-02"
+    expected_files = {
+        "views.json": fake_api["views"],
+        "clones.json": fake_api["clones"],
+        "referrers.json": [{"taken_on": today, "rows": fake_api["referrers"]}],
+        "paths.json": [{"taken_on": today, "rows": fake_api["paths"]}],
+    }
+
+    cli.archive_repo("fictional/repo", "tok", tmp_path, today)
+
+    archive = tmp_path / "fictional__repo"
+    for filename, expected in expected_files.items():
+        saved = json.loads((archive / filename).read_text(encoding="utf-8"))
+        assert saved == expected
+
+
+@pytest.mark.parametrize("failing_endpoint", ["views", "clones", "referrers", "paths"])
+def test_fetch_failure_preserves_existing_archive(
+    tmp_path, monkeypatch, fake_api, failing_endpoint,
+):
+    """A failed refresh must preserve the saved filenames and exact bytes."""
+    # Yesterday's archive; fake_api returns newer data for January 2.
+    daily_json = b'[{"timestamp":"2026-01-01T00:00:00Z","count":1,"uniques":1}]\n'
+    daily_csv = b"date,count,uniques\r\n2026-01-01,1,1\r\n"
+    snapshot_json = b'[{"taken_on":"2026-01-01","rows":[]}]\n'
+    original_files = {
+        "views.json": daily_json,
+        "views.csv": daily_csv,
+        "clones.json": daily_json,
+        "clones.csv": daily_csv,
+        "referrers.json": snapshot_json,
+        "paths.json": snapshot_json,
+    }
+    archive = tmp_path / "fictional__repo"
+    archive.mkdir()
+    for filename, contents in original_files.items():
+        (archive / filename).write_bytes(contents)
+
+    def fail(repo, token):
+        raise api.TrafficError("synthetic fetch failure")
+
+    monkeypatch.setattr(api, failing_endpoint, fail)
+
+    with pytest.raises(api.TrafficError):
+        cli.archive_repo("fictional/repo", "tok", tmp_path, "2026-01-02")
+
+    assert {path.name for path in archive.iterdir()} == set(original_files)
+    for filename, original_bytes in original_files.items():
+        assert (archive / filename).read_bytes() == original_bytes
+
+
+@pytest.mark.parametrize("failing_endpoint", ["views", "clones", "referrers", "paths"])
+def test_fetch_failure_creates_no_archive(tmp_path, monkeypatch, fake_api, failing_endpoint):
+    """A failed first collection must not create output directories."""
+    out = tmp_path / "archive"
+
+    def fail(repo, token):
+        raise api.TrafficError("synthetic fetch failure")
+
+    monkeypatch.setattr(api, failing_endpoint, fail)
+
+    with pytest.raises(api.TrafficError):
+        cli.archive_repo("fictional/repo", "tok", out, "2026-01-02")
+
+    assert not out.exists()
+
+
 def test_second_run_preserves_days_the_api_no_longer_returns(tmp_path, fake_api):
     """The failure this tool exists to prevent."""
     base = tmp_path / "owner__repo"
@@ -138,20 +207,27 @@ def test_corrupt_archive_is_not_silently_overwritten(tmp_path, fake_api):
         cli.archive_repo("owner/repo", "tok", tmp_path, "2026-01-02")
 
 
-def test_one_unreadable_repo_does_not_abandon_the_others(tmp_path, monkeypatch, fake_api, capsys):
-    real_views = api.views
+@pytest.mark.parametrize("failing_endpoint", ["views", "clones", "referrers", "paths"])
+def test_one_unreadable_repo_does_not_abandon_the_others(
+    tmp_path, monkeypatch, fake_api, capsys, failing_endpoint,
+):
+    real_fetch = getattr(api, failing_endpoint)
 
-    def selective(repo, token, per="day"):
+    def selective(repo, token):
         if repo == "owner/private":
             raise api.TrafficError("403 no push access")
-        return real_views(repo, token, per)
+        return real_fetch(repo, token)
 
-    monkeypatch.setattr(api, "views", selective)
+    monkeypatch.setattr(api, failing_endpoint, selective)
     code = cli.main(["--repos", "owner/private,owner/repo",
                      "--token", "tok", "--out", str(tmp_path)])
     assert code == 0
     assert (tmp_path / "owner__repo" / "views.json").exists()
-    assert "skipped" in capsys.readouterr().err
+    assert (tmp_path / "owner__repo" / "paths.json").exists()
+    assert not (tmp_path / "owner__private").exists()
+    captured = capsys.readouterr()
+    assert "1/2 archived into" in captured.out
+    assert "owner/private: skipped" in captured.err
 
 
 def test_exit_code_is_nonzero_when_everything_failed(tmp_path, monkeypatch, fake_api):
