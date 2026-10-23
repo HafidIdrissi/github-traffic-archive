@@ -63,19 +63,27 @@ def archive_repo(repo: str, token: str, out: Path, today: str) -> dict[str, int]
     """Fetch one repository's traffic and merge it into the archive."""
     base = out / _slug(repo)
 
+    # A failed fetch must leave this repository's archive unchanged.
+    collected = {
+        "views": api.views(repo, token),
+        "clones": api.clones(repo, token),
+        "referrers": api.referrers(repo, token),
+        "paths": api.paths(repo, token),
+    }
+
     summary: dict[str, int] = {}
-    for metric, fetch in (("views", api.views), ("clones", api.clones)):
+    for metric in ("views", "clones"):
         path = base / f"{metric}.json"
-        merged = merge_timeseries(_read_json(path, []), fetch(repo, token))
+        merged = merge_timeseries(_read_json(path, []), collected[metric])
         _write_json(path, merged)
         _write_csv(base / f"{metric}.csv", to_csv_rows(merged))
         t = totals(merged)
         summary[metric] = t["count"]
         summary[f"{metric}_days"] = t["days"]
 
-    for metric, fetch in (("referrers", api.referrers), ("paths", api.paths)):
+    for metric in ("referrers", "paths"):
         path = base / f"{metric}.json"
-        snaps = append_snapshot(_read_json(path, []), fetch(repo, token), today)
+        snaps = append_snapshot(_read_json(path, []), collected[metric], today)
         _write_json(path, snaps)
 
     return summary
