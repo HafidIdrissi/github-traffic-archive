@@ -1,3 +1,6 @@
+import csv
+import io
+
 import pytest
 
 from traffic_archive.merge import (
@@ -74,3 +77,106 @@ def test_csv_has_a_header_and_iso_dates():
     rows = to_csv_rows([day("2026-01-01T00:00:00Z", 3, 2)])
     assert rows[0] == ["date", "count", "uniques"]
     assert rows[1] == ["2026-01-01", "3", "2"]
+
+
+def test_to_csv_rows_preserves_large_integers_and_zeros():
+    """Counts and uniques exceeding 2**53 and zero values remain exact decimal strings."""
+    large = 2**53 + 1  # 9007199254740993
+    larger = 2**53 + 3  # 9007199254740995
+    series = [
+        day("2026-01-01T00:00:00Z", large, 0),
+        day("2026-01-02T00:00:00Z", 0, larger),
+    ]
+    rows = to_csv_rows(series)
+    assert rows == [
+        ["date", "count", "uniques"],
+        ["2026-01-01", "9007199254740993", "0"],
+        ["2026-01-02", "0", "9007199254740995"],
+    ]
+
+
+def test_csv_serialization_round_trip_preserves_large_integers():
+    """Writing to CSV and reading back preserves exact decimal representations without float truncation."""
+    large_count = 2**53 + 1  # 9007199254740993
+    large_uniques = 2**53 + 3  # 9007199254740995
+    series = [
+        day("2026-01-01T00:00:00Z", large_count, 100),
+        day("2026-01-02T00:00:00Z", 0, 0),
+        day("2026-01-03T00:00:00Z", 50, large_uniques),
+    ]
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerows(to_csv_rows(series))
+
+    buffer.seek(0)
+    reader = list(csv.reader(buffer))
+
+    assert reader == [
+        ["date", "count", "uniques"],
+        ["2026-01-01", "9007199254740993", "100"],
+        ["2026-01-02", "0", "0"],
+        ["2026-01-03", "50", "9007199254740995"],
+    ]
+
+
+def test_totals_preserves_exact_large_integer_sums():
+    """totals() preserves exact integer sums and types without floating-point precision loss."""
+    large_a = 2**53 + 1  # 9007199254740993
+    large_b = 2**53 + 3  # 9007199254740995
+    series = [
+        day("2026-01-01T00:00:00Z", large_a, 0),
+        day("2026-01-02T00:00:00Z", 1, large_b),
+        day("2026-01-03T00:00:00Z", 0, 2),
+    ]
+    result = totals(series)
+    assert result["days"] == 3
+    assert result["count"] == 9007199254740994  # (2**53 + 1) + 1
+    assert result["uniques"] == 9007199254740997  # (2**53 + 3) + 2
+    assert type(result["days"]) is int
+    assert type(result["count"]) is int
+    assert type(result["uniques"]) is int
+
+
+def test_merge_timeseries_preserves_large_integers_and_fresh_values():
+    """Merging keeps large integers exact and lets fresh values win for repeated dates."""
+    large_stored = 2**53 + 1  # 9007199254740993
+    large_incoming = 2**53 + 3  # 9007199254740995
+
+    stored = [
+        day("2026-01-01T00:00:00Z", large_stored, 10),
+        day("2026-01-02T00:00:00Z", large_stored, 5),
+    ]
+    incoming = [
+        day("2026-01-02T00:00:00Z", large_incoming, 0),
+        day("2026-01-03T00:00:00Z", 0, large_incoming),
+    ]
+
+    merged = merge_timeseries(stored, incoming)
+
+    assert len(merged) == 3
+    assert merged[0] == {
+        "timestamp": "2026-01-01T00:00:00Z",
+        "count": 9007199254740993,
+        "uniques": 10,
+    }
+    assert merged[1] == {
+        "timestamp": "2026-01-02T00:00:00Z",
+        "count": 9007199254740995,
+        "uniques": 0,
+    }
+    assert merged[2] == {
+        "timestamp": "2026-01-03T00:00:00Z",
+        "count": 0,
+        "uniques": 9007199254740995,
+    }
+
+    for entry in merged:
+        assert type(entry["count"]) is int
+        assert type(entry["uniques"]) is int
+
+    merged_totals = totals(merged)
+    assert merged_totals["days"] == 3
+    assert merged_totals["count"] == 9007199254740993 + 9007199254740995 + 0
+    assert merged_totals["uniques"] == 10 + 0 + 9007199254740995
+    assert type(merged_totals["count"]) is int
+    assert type(merged_totals["uniques"]) is int

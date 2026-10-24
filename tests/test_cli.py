@@ -1,4 +1,5 @@
 import argparse
+import csv
 import json
 
 import pytest
@@ -253,3 +254,111 @@ def test_cli_rejects_invalid_repo_and_exits(capsys):
     captured = capsys.readouterr()
     assert "Expected 'owner/name'" in captured.err
 
+
+def test_archive_repo_serializes_large_integers_and_zeros_exact(tmp_path, fake_api):
+    """archive_repo preserves exact large integers and zeros in JSON, CSV, and summary totals."""
+    large = 2**53 + 1  # 9007199254740993
+    larger = 2**53 + 3  # 9007199254740995
+    fake_api["views"] = [
+        {"timestamp": "2026-01-01T00:00:00Z", "count": large, "uniques": 0},
+        {"timestamp": "2026-01-02T00:00:00Z", "count": 0, "uniques": larger},
+        {"timestamp": "2026-01-03T00:00:00Z", "count": 5, "uniques": 2},
+    ]
+
+    summary = cli.archive_repo("owner/repo", "tok", tmp_path, "2026-01-03")
+
+    expected_count = large + 0 + 5  # 9007199254740998
+    assert summary["views"] == expected_count
+    assert summary["views_days"] == 3
+    assert type(summary["views"]) is int
+    assert type(summary["views_days"]) is int
+
+    base = tmp_path / "owner__repo"
+
+    # Verify JSON
+    views_json_path = base / "views.json"
+    assert views_json_path.exists()
+    payload = json.loads(views_json_path.read_text(encoding="utf-8"))
+    assert len(payload) == 3
+    assert payload[0] == {"timestamp": "2026-01-01T00:00:00Z", "count": 9007199254740993, "uniques": 0}
+    assert payload[1] == {"timestamp": "2026-01-02T00:00:00Z", "count": 0, "uniques": 9007199254740995}
+    assert payload[2] == {"timestamp": "2026-01-03T00:00:00Z", "count": 5, "uniques": 2}
+
+    for item in payload:
+        assert type(item["count"]) is int
+        assert type(item["uniques"]) is int
+
+    # Verify CSV
+    views_csv_path = base / "views.csv"
+    assert views_csv_path.exists()
+    with views_csv_path.open("r", encoding="utf-8", newline="") as fh:
+        rows = list(csv.reader(fh))
+
+    assert rows == [
+        ["date", "count", "uniques"],
+        ["2026-01-01", "9007199254740993", "0"],
+        ["2026-01-02", "0", "9007199254740995"],
+        ["2026-01-03", "5", "2"],
+    ]
+
+
+def test_repeated_archive_preserves_large_integers(tmp_path, fake_api):
+    """A subsequent archive run preserves historical large integer counts outside the window."""
+    base = tmp_path / "owner__repo"
+    base.mkdir(parents=True)
+    historical_count = 2**53 + 1  # 9007199254740993
+    historical_uniques = 2**53 + 3  # 9007199254740995
+    historical_data = [
+        {"timestamp": "2025-06-01T00:00:00Z", "count": historical_count, "uniques": historical_uniques}
+    ]
+    (base / "views.json").write_text(json.dumps(historical_data), encoding="utf-8")
+
+    fresh_count = 42
+    fresh_uniques = 10
+    fake_api["views"] = [
+        {"timestamp": "2026-01-02T00:00:00Z", "count": fresh_count, "uniques": fresh_uniques}
+    ]
+
+    summary = cli.archive_repo("owner/repo", "tok", tmp_path, "2026-01-02")
+
+    stored = json.loads((base / "views.json").read_text(encoding="utf-8"))
+    assert len(stored) == 2
+    assert stored[0] == {
+        "timestamp": "2025-06-01T00:00:00Z",
+        "count": 9007199254740993,
+        "uniques": 9007199254740995,
+    }
+    assert stored[1] == {
+        "timestamp": "2026-01-02T00:00:00Z",
+        "count": 42,
+        "uniques": 10,
+    }
+    assert type(stored[0]["count"]) is int
+    assert type(stored[0]["uniques"]) is int
+
+    with (base / "views.csv").open("r", encoding="utf-8", newline="") as fh:
+        csv_rows = list(csv.reader(fh))
+    assert csv_rows == [
+        ["date", "count", "uniques"],
+        ["2025-06-01", "9007199254740993", "9007199254740995"],
+        ["2026-01-02", "42", "10"],
+    ]
+
+    assert summary["views"] == historical_count + fresh_count
+    assert summary["views_days"] == 2
+    assert type(summary["views"]) is int
+    assert type(summary["views_days"]) is int
+
+
+def test_cli_main_reports_large_count_summary(tmp_path, fake_api, capsys):
+    """cli.main prints exact decimal large integer totals in the stdout summary."""
+    large_count = 2**53 + 1  # 9007199254740993
+    fake_api["views"] = [
+        {"timestamp": "2026-01-02T00:00:00Z", "count": large_count, "uniques": 5}
+    ]
+
+    code = cli.main(["--repos", "owner/repo", "--token", "tok", "--out", str(tmp_path)])
+
+    assert code == 0
+    captured = capsys.readouterr()
+    assert "9007199254740993 views" in captured.out
