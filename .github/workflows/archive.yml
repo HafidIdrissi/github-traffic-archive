@@ -22,7 +22,7 @@ jobs:
     env:
       TRAFFIC_TOKEN: ${{ secrets.TRAFFIC_TOKEN }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Explain the skip rather than failing red
         if: env.TRAFFIC_TOKEN == ''
