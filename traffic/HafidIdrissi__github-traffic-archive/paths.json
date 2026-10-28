@@ -3508,5 +3508,70 @@
         "uniques": 2
       }
     ]
+  },
+  {
+    "taken_on": "2026-10-28",
+    "rows": [
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/issues",
+        "title": "/issues",
+        "count": 16,
+        "uniques": 4
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/issues/84",
+        "title": "/issues/84",
+        "count": 10,
+        "uniques": 2
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/issues/96",
+        "title": "/issues/96",
+        "count": 5,
+        "uniques": 2
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/pull/130",
+        "title": "/pull/130",
+        "count": 5,
+        "uniques": 2
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/pull/123",
+        "title": "/pull/123",
+        "count": 5,
+        "uniques": 1
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive",
+        "title": "Overview",
+        "count": 3,
+        "uniques": 3
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/labels/good first issue",
+        "title": "/labels/good first issue",
+        "count": 3,
+        "uniques": 3
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/issues/99",
+        "title": "/issues/99",
+        "count": 3,
+        "uniques": 2
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/issues/112",
+        "title": "/issues/112",
+        "count": 3,
+        "uniques": 1
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/pull/122",
+        "title": "/pull/122",
+        "count": 3,
+        "uniques": 1
+      }
+    ]
   }
 ]
