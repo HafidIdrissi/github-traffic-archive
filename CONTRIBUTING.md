@@ -40,6 +40,10 @@ The printed path should point into the checkout's `src/traffic_archive`
 directory. Windows-specific environment setup is tracked in
 [#43](https://github.com/HafidIdrissi/github-traffic-archive/issues/43).
 
+[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) maps the action, CLI, API client,
+doctor, and merge modules, follows one archive run from inputs to files, and
+names the test file to open for each of those behaviours.
+
 The package uses the standard library only. Please keep it that way: a
 scheduled workflow that breaks because of a transitive release is worse than a
 few extra lines of `urllib`.
