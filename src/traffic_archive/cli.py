@@ -7,10 +7,14 @@ import csv
 import datetime as dt
 import json
 import os
+import stat
 import sys
+import tempfile
+from contextlib import contextmanager
 from pathlib import Path
 
 from . import __version__, api, doctor
+from ._archive_access import _report_cleanup_error, create_windows_temp, preserve_access
 from .merge import append_snapshot, merge_timeseries, to_csv_rows, totals
 
 
@@ -48,14 +52,53 @@ def _read_json(path: Path, default):
         raise SystemExit(f"{path} is not valid JSON ({err}). Refusing to overwrite it.")
 
 
-def _write_json(path: Path, payload) -> None:
+@contextmanager
+def _atomic_text_writer(path: Path, *, newline: str | None = None):
+    """Publish one file after preserving supported access and closing its stream."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    try:
+        previous = path.lstat()
+    except FileNotFoundError:
+        previous = None
+    if previous is not None and not stat.S_ISREG(previous.st_mode):
+        raise OSError(f"Cannot replace a non-regular archive file: {path}")
+
+    if os.name == "nt" and previous is not None:
+        fd, temp_path = create_windows_temp(path.parent)
+    else:
+        fd, name = tempfile.mkstemp(dir=path.parent, prefix=".traffic-archive-", suffix=".tmp")
+        temp_path = Path(name)
+    stream = None
+    try:
+        stream = os.fdopen(fd, "w", encoding="utf-8", newline=newline)
+        if previous is not None:
+            preserve_access(path, temp_path, previous, target_fd=fd)
+        yield stream
+        stream.close()
+        os.replace(temp_path, path)
+    except BaseException:
+        if stream is None or not stream.closed:
+            try:
+                if stream is None:
+                    os.close(fd)
+                else:
+                    stream.close()
+            except OSError as error:
+                _report_cleanup_error(temp_path, error)
+        try:
+            temp_path.unlink(missing_ok=True)
+        except OSError as error:
+            _report_cleanup_error(temp_path, error)
+        raise
+
+
+def _write_json(path: Path, payload) -> None:
+    with _atomic_text_writer(path) as fh:
+        fh.write(json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
 
 
 def _write_csv(path: Path, rows: list[list[str]]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8", newline="") as fh:
+    with _atomic_text_writer(path, newline="") as fh:
         csv.writer(fh).writerows(rows)
 
 
