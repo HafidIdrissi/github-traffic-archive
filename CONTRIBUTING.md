@@ -49,6 +49,9 @@ Before opening a pull request, create a focused branch from the latest
 that fails before the fix and passes afterwards. Draft pull requests are
 welcome when you want early feedback.
 
+For a module map, archive walkthrough, and focused tests, see the
+[development guide](docs/DEVELOPMENT.md).
+
 ## What to keep in mind
 
 - **Never invent data.** Referrers and paths have no per-day breakdown, so they
