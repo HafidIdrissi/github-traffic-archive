@@ -1058,5 +1058,25 @@
         "uniques": 1
       }
     ]
+  },
+  {
+    "taken_on": "2026-11-12",
+    "rows": [
+      {
+        "referrer": "aocr.org",
+        "count": 10,
+        "uniques": 10
+      },
+      {
+        "referrer": "github.com",
+        "count": 7,
+        "uniques": 4
+      },
+      {
+        "referrer": "up-for-grabs.net",
+        "count": 2,
+        "uniques": 1
+      }
+    ]
   }
 ]
