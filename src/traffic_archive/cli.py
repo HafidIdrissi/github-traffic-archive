@@ -5,9 +5,13 @@ from __future__ import annotations
 import argparse
 import csv
 import datetime as dt
+import errno
 import json
 import os
+import stat
 import sys
+import tempfile
+from contextlib import contextmanager
 from pathlib import Path
 
 from . import __version__, api, doctor
@@ -48,14 +52,111 @@ def _read_json(path: Path, default):
         raise SystemExit(f"{path} is not valid JSON ({err}). Refusing to overwrite it.")
 
 
+_POSIX_ACL = "system.posix_acl_access"
+
+
+def _read_posix_acl(file) -> bytes | None:
+    try:
+        return os.getxattr(file, _POSIX_ACL)
+    except OSError as error:
+        if error.errno == errno.ENODATA:
+            return None
+        # Includes ENOTSUP: the filesystem may use another ACL model (NFSv4, CIFS).
+        raise
+
+
+def _copy_linux_access(fd: int, path: Path, previous: os.stat_result) -> None:
+    """Give the empty staging file the archive's owner, group, mode and POSIX ACL."""
+    expected = (previous.st_uid, previous.st_gid, stat.S_IMODE(previous.st_mode))
+    try:
+        acl = _read_posix_acl(path)
+        staged = os.fstat(fd)
+        if (staged.st_uid, staged.st_gid) != expected[:2]:
+            os.fchown(fd, previous.st_uid, previous.st_gid)
+        if acl is not None:
+            os.setxattr(fd, _POSIX_ACL, acl)
+        elif _read_posix_acl(fd) is not None:
+            os.removexattr(fd, _POSIX_ACL)  # inherited from a default ACL on the directory
+        # After chown, which can clear set-id bits.
+        os.fchmod(fd, expected[2])
+        staged = os.fstat(fd)
+        copied = (staged.st_uid, staged.st_gid, stat.S_IMODE(staged.st_mode)) == expected
+        copied = copied and _read_posix_acl(fd) == acl
+    except OSError as error:
+        raise PermissionError(
+            f"Cannot preserve the access policy of {path}; left it unchanged: {error}"
+        ) from error
+    if not copied:
+        raise PermissionError(f"Access policy of {path} did not copy exactly; left it unchanged.")
+
+
+def _report_cleanup_error(path: Path, error: OSError) -> None:
+    try:
+        print(f"Could not remove temporary archive file {path}: {error}", file=sys.stderr)
+    except (OSError, ValueError):
+        pass  # The error that caused the cleanup matters more than this message.
+
+
+@contextmanager
+def _replace_atomically(path: Path, newline: str | None = None):
+    """Stage beside the archive and publish it only after the write and close succeed (Linux)."""
+    target = Path(os.path.realpath(path))  # Keep following a symlinked archive, as before.
+    try:
+        previous = target.stat()
+    except FileNotFoundError:
+        previous = None
+    if previous is not None and not stat.S_ISREG(previous.st_mode):
+        raise OSError(f"Cannot replace {target}: not a regular file.")
+    if previous is not None and not os.access(target, os.W_OK):
+        raise PermissionError(errno.EACCES, "Archive is not writable", str(target))
+
+    # mkstemp creates the file owner-only, so new archives stay owner-only.
+    fd, name = tempfile.mkstemp(dir=target.parent, prefix=f".{target.name}.", suffix=".tmp")
+    temp = Path(name)
+    stream = None
+    try:
+        if previous is not None:
+            _copy_linux_access(fd, target, previous)
+        stream = os.fdopen(fd, "w", encoding="utf-8", newline=newline)
+        yield stream
+        stream.close()
+        os.replace(temp, target)
+    except BaseException:
+        try:
+            if stream is None:
+                os.close(fd)
+            else:
+                stream.close()
+        except OSError:
+            pass  # The staging file is being discarded either way.
+        try:
+            temp.unlink()
+        except FileNotFoundError:
+            pass
+        except OSError as error:
+            _report_cleanup_error(temp, error)
+        raise
+
+
+# Only Linux replaces atomically for now (#14). Windows and macOS keep updating in
+# place until their access policies can be preserved on a new file.
 def _write_json(path: Path, payload) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    text = json.dumps(payload, indent=2, ensure_ascii=False) + "\n"
+    if sys.platform == "linux":
+        with _replace_atomically(path) as fh:
+            fh.write(text)
+    else:
+        path.write_text(text, encoding="utf-8")
 
 
 def _write_csv(path: Path, rows: list[list[str]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8", newline="") as fh:
+    if sys.platform == "linux":
+        opened = _replace_atomically(path, newline="")
+    else:
+        opened = path.open("w", encoding="utf-8", newline="")
+    with opened as fh:
         csv.writer(fh).writerows(rows)
 
 
