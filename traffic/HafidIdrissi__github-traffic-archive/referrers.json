@@ -1153,5 +1153,20 @@
         "uniques": 1
       }
     ]
+  },
+  {
+    "taken_on": "2026-11-18",
+    "rows": [
+      {
+        "referrer": "github.com",
+        "count": 5,
+        "uniques": 4
+      },
+      {
+        "referrer": "up-for-grabs.net",
+        "count": 1,
+        "uniques": 1
+      }
+    ]
   }
 ]

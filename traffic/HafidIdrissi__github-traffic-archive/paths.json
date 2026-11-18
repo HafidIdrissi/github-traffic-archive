@@ -4808,5 +4808,70 @@
         "uniques": 1
       }
     ]
+  },
+  {
+    "taken_on": "2026-11-18",
+    "rows": [
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/issues",
+        "title": "/issues",
+        "count": 10,
+        "uniques": 3
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive",
+        "title": "Overview",
+        "count": 5,
+        "uniques": 5
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/compare/main...rajshadow:oss/14-atomic-writes-linux",
+        "title": "/compare/main...rajshadow:oss/14-atomic-writes-linux",
+        "count": 3,
+        "uniques": 2
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/issues/14",
+        "title": "/issues/14",
+        "count": 2,
+        "uniques": 1
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/issues/45",
+        "title": "/issues/45",
+        "count": 2,
+        "uniques": 1
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/pull/134",
+        "title": "/pull/134",
+        "count": 2,
+        "uniques": 1
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/commits",
+        "title": "/commits",
+        "count": 1,
+        "uniques": 1
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/compare/main...rajshadow:codex/atomic-archive-writes-14",
+        "title": "/compare/main...rajshadow:codex/atomic-archive-writes-14",
+        "count": 1,
+        "uniques": 1
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/compare/main...rajshadow:codex/atomic-archive-writes-14-preview",
+        "title": "/compare/main...rajshadow:codex/atomic-archive-writes-14-preview",
+        "count": 1,
+        "uniques": 1
+      },
+      {
+        "path": "/HafidIdrissi/github-traffic-archive/issues/100",
+        "title": "/issues/100",
+        "count": 1,
+        "uniques": 1
+      }
+    ]
   }
 ]
