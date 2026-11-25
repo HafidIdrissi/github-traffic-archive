@@ -1233,5 +1233,15 @@
         "uniques": 6
       }
     ]
+  },
+  {
+    "taken_on": "2026-11-25",
+    "rows": [
+      {
+        "referrer": "github.com",
+        "count": 7,
+        "uniques": 6
+      }
+    ]
   }
 ]
