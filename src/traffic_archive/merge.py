@@ -24,6 +24,34 @@ COUNT = "count"
 UNIQUES = "uniques"
 
 
+def validate_timeseries(rows: Any, source: str) -> None:
+    """Check stored daily rows before a merge can silently drop them.
+
+    `merge_timeseries` indexes by timestamp and keeps only entries that have
+    one. A malformed stored row therefore disappears without warning, and the
+    lost day can no longer be recovered once GitHub's window rolls over. This
+    rejects such rows with the source and row index so the archive is left
+    untouched instead of quietly rewritten.
+
+    The rules match the traffic endpoint's own validation in `doctor`: a
+    non-empty timestamp and non-negative integer count and uniques. Booleans
+    are not counts.
+    """
+    if not isinstance(rows, list):
+        raise ValueError(f"{source}: expected a list of daily rows")
+    for index, row in enumerate(rows):
+        where = f"{source}: row {index}"
+        if not isinstance(row, dict):
+            raise ValueError(f"{where}: expected an object")
+        ts = row.get(TIMESTAMP)
+        if not isinstance(ts, str) or not ts:
+            raise ValueError(f"{where}: missing {TIMESTAMP}")
+        for key in (COUNT, UNIQUES):
+            value = row.get(key)
+            if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+                raise ValueError(f"{where}: {key} must be a non-negative integer")
+
+
 def merge_timeseries(
     stored: Iterable[dict[str, Any]],
     incoming: Iterable[dict[str, Any]],
