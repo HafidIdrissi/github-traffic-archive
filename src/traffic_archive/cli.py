@@ -9,9 +9,16 @@ import json
 import os
 import sys
 from pathlib import Path
+from typing import Any
 
 from . import __version__, api, doctor
-from .merge import append_snapshot, merge_timeseries, to_csv_rows, totals
+from .merge import (
+    append_snapshot,
+    merge_timeseries,
+    to_csv_rows,
+    totals,
+    validate_timeseries,
+)
 
 
 def parse_repo_arg(repo_str: str) -> list[str]:
@@ -71,10 +78,25 @@ def archive_repo(repo: str, token: str, out: Path, today: str) -> dict[str, int]
         "paths": api.paths(repo, token),
     }
 
+    # Validate both stored series before writing either one: a malformed
+    # clones.json must not leave a rewritten views.json behind.
+    stored_series: dict[str, list[dict[str, Any]]] = {}
+    for metric in ("views", "clones"):
+        path = base / f"{metric}.json"
+        stored = _read_json(path, [])
+        try:
+            validate_timeseries(stored, path.name)
+        except ValueError as err:
+            # Refuse to rewrite a stored series whose rows a merge would drop.
+            raise api.TrafficError(
+                f"{err}. Refusing to overwrite it; repair the archive first."
+            ) from err
+        stored_series[metric] = stored
+
     summary: dict[str, int] = {}
     for metric in ("views", "clones"):
         path = base / f"{metric}.json"
-        merged = merge_timeseries(_read_json(path, []), collected[metric])
+        merged = merge_timeseries(stored_series[metric], collected[metric])
         _write_json(path, merged)
         _write_csv(base / f"{metric}.csv", to_csv_rows(merged))
         t = totals(merged)

@@ -4,7 +4,11 @@ import io
 import pytest
 
 from traffic_archive.merge import (
-    append_snapshot, merge_timeseries, to_csv_rows, totals,
+    append_snapshot,
+    merge_timeseries,
+    to_csv_rows,
+    totals,
+    validate_timeseries,
 )
 
 
@@ -135,6 +139,28 @@ def test_totals_preserves_exact_large_integer_sums():
     assert type(result["days"]) is int
     assert type(result["count"]) is int
     assert type(result["uniques"]) is int
+
+
+@pytest.mark.parametrize("stored", [
+    {"timestamp": "2026-01-01T00:00:00Z"},                       # no count/uniques
+    {"timestamp": "2026-01-01T00:00:00Z", "count": 3},           # no uniques
+    {"timestamp": "2026-01-01T00:00:00Z", "count": 3, "uniques": -1},
+    {"timestamp": "2026-01-01T00:00:00Z", "count": True, "uniques": 1},
+    {"timestamp": "", "count": 3, "uniques": 1},
+    ["not", "an", "object"],
+])
+def test_validate_timeseries_rejects_malformed_stored_rows(stored):
+    """Stored rows that merge_timeseries would silently drop must be rejected."""
+    with pytest.raises(ValueError, match="row"):
+        validate_timeseries([stored], "views.json")
+
+
+@pytest.mark.parametrize("stored", [
+    [],
+    [{"timestamp": "2026-01-01T00:00:00Z", "count": 0, "uniques": 0}],
+])
+def test_validate_timeseries_accepts_well_formed_stored_rows(stored):
+    validate_timeseries(stored, "views.json")
 
 
 def test_merge_timeseries_preserves_large_integers_and_fresh_values():

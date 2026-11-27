@@ -134,6 +134,30 @@ def test_archive_saves_each_collected_response(tmp_path, fake_api):
         assert saved == expected
 
 
+@pytest.mark.parametrize("metric", ["views", "clones"])
+@pytest.mark.parametrize("bad_rows", [
+    [{"timestamp": "2026-01-01T00:00:00Z", "count": 3}],       # missing uniques
+    [{"count": 3, "uniques": 1}],                               # missing timestamp
+    {"not": "a list"},                                          # wrong root shape
+])
+def test_malformed_stored_archive_is_rejected_without_rewriting(
+    tmp_path, fake_api, metric, bad_rows,
+):
+    """Syntactically valid but malformed rows must not be dropped during a merge."""
+    base = tmp_path / "owner__repo"
+    base.mkdir(parents=True)
+    stored_path = base / f"{metric}.json"
+    original = json.dumps(bad_rows).encode("utf-8")
+    stored_path.write_bytes(original)
+
+    with pytest.raises(api.TrafficError) as exc:
+        cli.archive_repo("owner/repo", "tok", tmp_path, "2026-01-02")
+
+    assert f"{metric}.json" in str(exc.value)
+    assert stored_path.read_bytes() == original
+    assert not (base / f"{metric}.csv").exists()
+
+
 @pytest.mark.parametrize("failing_endpoint", ["views", "clones", "referrers", "paths"])
 def test_fetch_failure_preserves_existing_archive(
     tmp_path, monkeypatch, fake_api, failing_endpoint,
