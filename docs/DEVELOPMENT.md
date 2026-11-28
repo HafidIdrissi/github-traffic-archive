@@ -25,9 +25,13 @@ The action reaches the same Python entry point as the installed `traffic-archive
 5. `_write_json()` writes the merged views to `views.json`. `to_csv_rows()` supplies a `date,count,uniques` header and rows to `_write_csv()` for `views.csv`. `totals()` calculates the summary from the merged history. The same sequence then produces `clones.json` and `clones.csv`.
 6. Referrers and paths are trailing-window top-ten snapshots, with no daily breakdown. `append_snapshot()` stores each response under `taken_on` and `rows`, replacing a snapshot taken on the same UTC date. These produce `referrers.json` and `paths.json`, with no CSV equivalents. `archive_repo()` returns the views/clones summary for `main()` to print.
 
-Writes currently go directly to destination files: JSON uses `Path.write_text()`, and CSV uses `Path.open("w")`.
-Files are updated sequentially, so a later read or write failure can leave earlier files updated.
-Temporary-file replacement and atomic writes are pending work in [#14](https://github.com/HafidIdrissi/github-traffic-archive/issues/14).
+On Linux, `_replace_atomically()` writes each file to a private temporary file in the same directory and replaces the destination only after the write and close succeed, so a failed write leaves the previous file intact.
+Before any data is written, the temporary file is given the existing file's owner, group, mode and POSIX ACL; if that cannot be read, copied or verified exactly, the update is refused and the existing file is left unchanged.
+New files are created owner-only (`0600`) rather than following the umask.
+A symlinked destination is followed and its target replaced. SELinux labels and extra hard links are not carried over.
+
+On Windows and macOS, writes still go directly to destination files (JSON uses `Path.write_text()`, CSV uses `Path.open("w")`), so they do not gain atomic writes yet; see [#14](https://github.com/HafidIdrissi/github-traffic-archive/issues/14).
+On every platform files are updated sequentially, so a later read or write failure can leave earlier files updated.
 
 ## Tests to start with
 
